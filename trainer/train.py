@@ -129,36 +129,37 @@ def pggan_train(param):
 
         #training Discriminator
         #Discriminatorに本物画像を入れて順伝播⇒Loss計算
-        D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
-        # 生成用のラベル
-        gen_label = F.softmax(D_real_class.detach(), dim=1)
-        gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
-        D_real_loss = - torch.mean(D_real_TF)
-        fake_img= G_model(z_conc, char_class_conc, gen_label_conc, res)
-        fake_img1, fake_img2 = torch.split(fake_img, z1.size(0), dim=0)
-        D_fake1 = D_model(fake_img1.detach(), res)[0]
-        D_fake1_loss = torch.mean(D_fake1)
-        D_fake2 = D_model(fake_img2.detach(), res)[0]
-        D_fake2_loss = torch.mean(D_fake2)
-        gp_loss = gradient_penalty(D_model, real_img.data, fake_img1.data, res, real_img.shape[0]) \
-                  + gradient_penalty(D_model, real_img.data, fake_img2.data, res, real_img.shape[0])
-        loss_drift = (D_real_TF ** 2).mean()
+        for _ in range(2):
+            D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
+            # 生成用のラベル
+            gen_label = F.softmax(D_real_class.detach(), dim=1)
+            gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
+            D_real_loss = - torch.mean(D_real_TF)
+            fake_img= G_model(z_conc, char_class_conc, gen_label_conc, res)
+            fake_img1, fake_img2 = torch.split(fake_img, z1.size(0), dim=0)
+            D_fake1 = D_model(fake_img1.detach(), res)[0]
+            D_fake1_loss = torch.mean(D_fake1)
+            D_fake2 = D_model(fake_img2.detach(), res)[0]
+            D_fake2_loss = torch.mean(D_fake2)
+            gp_loss = gradient_penalty(D_model, real_img.data, fake_img1.data, res, real_img.shape[0]) \
+                      + gradient_penalty(D_model, real_img.data, fake_img2.data, res, real_img.shape[0])
+            loss_drift = (D_real_TF ** 2).mean()
 
-        #Wasserstein lossの計算
-        D_TF_loss = (D_fake1_loss + D_fake2_loss + 2 * D_real_loss + 10 * gp_loss)/2
-        # 文字クラス分類のロス
-        D_char_loss = kl_divergence(D_real_char, char_class_oh, activation = 'softmax')
-        # 印象語分類のロス
-        D_class_loss = kl_divergence(D_real_class, labels_oh, activation='softmax')
-        # D_class_loss = f_loss(D_real_class, labels_oh)
-        D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
-        D_optimizer.zero_grad()
-        D_loss.backward()
-        del D_loss
-        D_optimizer.step()
-        D_running_TF_loss += D_TF_loss.item()
-        D_running_cl_loss += D_class_loss.item()
-        D_running_char_loss += D_char_loss.item()
+            #Wasserstein lossの計算
+            D_TF_loss = (D_fake1_loss + D_fake2_loss + 2 * D_real_loss + 10 * gp_loss)/2
+            # 文字クラス分類のロス
+            D_char_loss = kl_divergence(D_real_char, char_class_oh, activation = 'softmax')
+            # 印象語分類のロス
+            D_class_loss = kl_divergence(D_real_class, labels_oh, activation='softmax')
+            # D_class_loss = f_loss(D_real_class, labels_oh)
+            D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
+            D_optimizer.zero_grad()
+            D_loss.backward()
+            del D_loss
+            D_optimizer.step()
+            D_running_TF_loss += D_TF_loss.item()
+            D_running_cl_loss += D_class_loss.item()
+            D_running_char_loss += D_char_loss.item()
 
 
         ##caliculate accuracy

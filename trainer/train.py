@@ -112,7 +112,7 @@ def pggan_train(param):
         eps = 1 * 1e-7
         loss_lz = 1 / (lz + eps)
 
-        G_loss = G_TF_loss + G_char_loss + loss_lz + G_class_loss
+        G_loss = G_TF_loss + G_char_loss + loss_lz * 0.1 + G_class_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         del G_loss
@@ -129,7 +129,7 @@ def pggan_train(param):
 
         #training Discriminator
         #Discriminatorに本物画像を入れて順伝播⇒Loss計算
-        for _ in range(5):
+        for _ in range(1):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
             gen_label = F.softmax(D_real_class.detach(), dim=1)

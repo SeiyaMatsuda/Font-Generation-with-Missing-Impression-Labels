@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from mylib import compute_gradient_penalty, Multilabel_OneHot, kl_divergence, visualizer, FocalLoss
+from mylib import compute_gradient_penalty, Multilabel_OneHot, KlLoss, visualizer, FocalLoss
 from options import *
 import numpy as np
 import gc
@@ -56,6 +56,7 @@ def pggan_train(param):
     #バッチごとの計算
     criterion_pixel = torch.nn.L1Loss().to(device)
     f_loss = FocalLoss().to(device)
+    kl_loss = KlLoss(activation='softmax').to(device)
     for batch_idx, samples in enumerate(databar):
         real_img, char_class , labels = samples['img_target']/255, samples['charclass_target'], samples['one_embed_label_target']
         #ステップの定義
@@ -100,11 +101,11 @@ def pggan_train(param):
         # Wasserstein lossの計算
         G_TF_loss = (-torch.mean(D_fake_TF1) - torch.mean(D_fake_TF2))/2
         # 文字クラス分類のロス
-        G_char_loss = (kl_divergence(D_fake_char1, char_class_oh, activation='softmax') + \
-                       kl_divergence(D_fake_char2, char_class_oh, activation='softmax'))/2
+        G_char_loss = (kl_loss(D_fake_char1, char_class_oh) + \
+                       kl_loss(D_fake_char2, char_class_oh))/2
         # 印象語分類のロス
-        G_class_loss = (kl_divergence(D_fake_class1, gen_label, activation='softmax') + \
-                       kl_divergence(D_fake_class2, gen_label, activation='softmax')) / 2
+        G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
+                       kl_loss(D_fake_class2, gen_label)) / 2
         # G_class_loss = (f_loss(D_fake_class1, gen_label) + f_loss(D_fake_class2, gen_label))/2
         # mode seeking lossの算出
         lz = torch.mean(torch.abs(fake_img2 - fake_img1)) / torch.mean(
@@ -112,7 +113,7 @@ def pggan_train(param):
         eps = 1 * 1e-7
         loss_lz = 1 / (lz + eps)
 
-        G_loss = G_TF_loss + G_char_loss + loss_lz * 0.1 + G_class_loss
+        G_loss = G_TF_loss + G_char_loss + loss_lz + G_class_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         del G_loss
@@ -148,9 +149,9 @@ def pggan_train(param):
             #Wasserstein lossの計算
             D_TF_loss = (D_fake1_loss + D_fake2_loss + 2 * D_real_loss + 10 * gp_loss)/2
             # 文字クラス分類のロス
-            D_char_loss = kl_divergence(D_real_char, char_class_oh, activation='softmax')
+            D_char_loss = kl_loss(D_real_char, char_class_oh)
             # 印象語分類のロス
-            D_class_loss = kl_divergence(D_real_class, labels_oh, activation='softmax')
+            D_class_loss = kl_loss(D_real_class, labels_oh)
             # D_class_loss = f_loss(D_real_class, labels_oh)
             D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
             D_optimizer.zero_grad()

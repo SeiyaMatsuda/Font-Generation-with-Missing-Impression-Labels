@@ -351,6 +351,22 @@ class FocalLoss(nn.Module):
         loss = loss * (1 - logit.gather(1, index).squeeze(1)) ** self.gamma # focal loss
 
         return loss.sum()
+
+class KlLoss(nn.Module):
+    def __init__(self, activation = None):
+        super(KlLoss, self).__init__()
+        self.activation = activation
+
+    def forward(self, input, target):
+        entropy = -(target[target != 0] * target[target != 0].log()).sum()
+        if self.activation == 'softmax':
+            cross_entropy = -(target * F.log_softmax(input, dim=1)).sum()
+        elif self.activation == 'sigmoid':
+            cross_entropy = -(target * F.logsigmoid(input)).sum()
+        else:
+            cross_entropy = -(target * input).sum()
+        return (cross_entropy - entropy) / input.size(0)
+
 if __name__ == '__main__':
     loss = FocalLoss()
     input  = torch.tensor([0.2,0.5, 0.7, 0.21, 0.4]).view(1, -1)

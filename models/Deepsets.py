@@ -48,10 +48,9 @@ class DeepSets(nn.Module):
         #     x = x[mask]
         #     x = x.reshape(1, -1, 300)
         phi_output = self.phi(x)
-        sum_output = phi_output.mean(1)
+        # sum_output = phi_output.mean(1)
+        sum_output = torch.cat([ph[((x_!=0).sum(1)>0)].mean(0).view(1, -1) for x_, ph in zip(x, phi_output)], dim=0)
         rho_output = self.rho(sum_output)
-        #     rho_outputs.append(rho_output)
-        # rho_outputs = torch.cat(rho_outputs, dim=0)
         return rho_output
 
 if __name__ == '__main__':

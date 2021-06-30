@@ -33,19 +33,26 @@ class DeepSets(nn.Module):
            nn.Linear(self.d_dim, 300),
         )
 
-    def forward(self, input):
-        p = Pool(processes=4)
-        rho_outputs = []
-        for x in input:
-            mask = ((x!=0).sum(1)>0)
-            x = x[mask]
-            x = x.reshape(1, -1, 300)
-            phi_output = self.phi(x)
-            sum_output = phi_output.mean(1)
-            rho_output = self.rho(sum_output)
-            rho_outputs.append(rho_output)
-        rho_outputs = torch.cat(rho_outputs, dim=0)
-        return rho_outputs
+    def calc_sets(self, x):
+        mask = ((x != 0).sum(1) > 0)
+        x = x[mask]
+        x = x.reshape(1, -1, 300)
+        phi_output = self.phi(x)
+        sum_output = phi_output.mean(1)
+        rho_output = self.rho(sum_output)
+        return rho_output
+
+    def forward(self, x):
+        # for x in input:
+        #     mask = ((x!=0).sum(1)>0)
+        #     x = x[mask]
+        #     x = x.reshape(1, -1, 300)
+        phi_output = self.phi(x)
+        sum_output = phi_output.mean(1)
+        rho_output = self.rho(sum_output)
+        #     rho_outputs.append(rho_output)
+        # rho_outputs = torch.cat(rho_outputs, dim=0)
+        return rho_output
 
 if __name__ == '__main__':
     model = DeepSets(300, 300)

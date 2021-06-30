@@ -56,7 +56,7 @@ def pggan_train(param):
     #バッチごとの計算
     criterion_pixel = torch.nn.L1Loss().to(device)
     f_loss = FocalLoss().to(device)
-    bce_loss = torch.nn.BCEWithLogitsLoss().to(device)
+    bce_loss = torch.nn.BCEWithLogitsLoss(reduction='sum').to(device)
     kl_loss = KlLoss(activation='softmax').to(device)
     for batch_idx, samples in enumerate(databar):
         real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['multi_embed_label_target']
@@ -88,7 +88,7 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         # _, _, D_real_class = D_model(real_img, res)
         # gen_label = F.softmax(D_real_class.detach(), dim=1)
-        gen_label = labels_oh
+        gen_label = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
         # ２つのノイズの結合
         z_conc = torch.cat([z1, z2], dim=0).to(device)
         char_class_conc = torch.cat([char_class_oh, char_class_oh], dim=0).to(device)
@@ -108,7 +108,7 @@ def pggan_train(param):
         # 印象語分類のロス
         # G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
         #                kl_loss(D_fake_class2, gen_label)) / 2
-        G_class_loss = (bce_loss(D_fake_class1, gen_label) + bce_loss(D_fake_class2, gen_label))/2
+        G_class_loss = (bce_loss(D_fake_class1, labels_oh) + bce_loss(D_fake_class2, labels_oh))/2
 
         # mode seeking lossの算出
         lz = torch.mean(torch.abs(fake_img2 - fake_img1)) / torch.mean(
@@ -137,7 +137,7 @@ def pggan_train(param):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
             # gen_label = F.softmax(D_real_class.detach(), dim=1)
-            gen_label = labels_oh
+            gen_label = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
             gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
             D_real_loss = - torch.mean(D_real_TF)
             fake_img= G_model(z_conc, char_class_conc, gen_label_conc, res)
@@ -165,7 +165,6 @@ def pggan_train(param):
             D_running_TF_loss += D_TF_loss.item()
             D_running_cl_loss += D_class_loss.item()
             D_running_char_loss += D_char_loss.item()
-
 
         ##caliculate accuracy
         real_pred = 1 * (torch.sigmoid(D_real_TF) > 0.5).detach().cpu()

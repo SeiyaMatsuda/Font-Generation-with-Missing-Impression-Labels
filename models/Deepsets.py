@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from multiprocessing import Pool
 
 class PermutationEquivariant(nn.Module):
     def __init__(self, in_dim, out_dim):
@@ -13,7 +14,6 @@ class PermutationEquivariant(nn.Module):
         x = self.Gamma(x)
         x = x - xm
         return x
-
 class DeepSets(nn.Module):
     def __init__(self, x_dim, d_dim):
         super(DeepSets, self).__init__()
@@ -32,13 +32,20 @@ class DeepSets(nn.Module):
            nn.Dropout(p=0.5),
            nn.Linear(self.d_dim, 300),
         )
-        print(self)
 
-    def forward(self, x):
-        phi_output = self.phi(x)
-        sum_output = phi_output.mean(1)
-        rho_output = self.rho(sum_output)
-        return rho_output
+    def forward(self, input):
+        p = Pool(processes=4)
+        rho_outputs = []
+        for x in input:
+            mask = ((x!=0).sum(1)>0)
+            x = x[mask]
+            x = x.reshape(1, -1, 300)
+            phi_output = self.phi(x)
+            sum_output = phi_output.mean(1)
+            rho_output = self.rho(sum_output)
+            rho_outputs.append(rho_output)
+        rho_outputs = torch.cat(rho_outputs, dim=0)
+        return rho_outputs
 
 if __name__ == '__main__':
     model = DeepSets(300, 300)

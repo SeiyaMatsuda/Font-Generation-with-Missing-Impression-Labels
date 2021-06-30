@@ -318,39 +318,39 @@ def visualizer(path, G_model, z, char_num, label, res, device):
         samples = F.interpolate(samples, (128, 128), mode='nearest')
         save_image(samples, path, nrow=char_num)
 
-    # class FocalLoss(nn.Module):
-    #     def __init__(self, gamma=2):
-    #         super(FocalLoss, self).__init__()
-    #         self.gamma = gamma
-    #
-    #     def forward(self, input, target):
-    #         target = target.float()
-    #         # BCELossWithLogits
-    #         max_val = (-input).clamp(min=0)
-    #         loss = input - input * target + max_val + \
-    #                ((-max_val).exp() + (-input - max_val).exp()).log()
-    #
-    #         invprobs = F.logsigmoid(-input * (target * 2.0 - 1.0))
-    #         loss = (invprobs * self.gamma).exp() * loss
-    #         if len(loss.size()) == 2:
-    #             loss = loss.sum(dim=1)
-    #         return loss.mean()
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, eps=1e-7):
+    def __init__(self, gamma=2):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
-        self.eps = eps
 
     def forward(self, input, target):
-        logit = F.softmax(input, dim=1)
-        logit = logit.clamp(self.eps, 1. - self.eps)
-        logit_ls = torch.log(logit)
-        loss = F.nll_loss(logit_ls, target, reduction="none")
-        view = target.size() + (1,)
-        index = target.view(*view)
-        loss = loss * (1 - logit.gather(1, index).squeeze(1)) ** self.gamma # focal loss
+        target = target.float()
+        # BCELossWithLogits
+        max_val = (-input).clamp(min=0)
+        loss = input - input * target + max_val + \
+               ((-max_val).exp() + (-input - max_val).exp()).log()
 
-        return loss.sum()
+        invprobs = F.logsigmoid(-input * (target * 2.0 - 1.0))
+        loss = (invprobs * self.gamma).exp() * loss
+        if len(loss.size()) == 2:
+            loss = loss.sum(dim=1)
+        return loss.mean()
+# class FocalLoss(nn.Module):
+#     def __init__(self, gamma=0, eps=1e-7):
+#         super(FocalLoss, self).__init__()
+#         self.gamma = gamma
+#         self.eps = eps
+#
+#     def forward(self, input, target):
+#         logit = F.softmax(input, dim=1)
+#         logit = logit.clamp(self.eps, 1. - self.eps)
+#         logit_ls = torch.log(logit)
+#         loss = F.nll_loss(logit_ls, target, reduction="none")
+#         view = target.size() + (1,)
+#         index = target.view(*view)
+#         loss = loss * (1 - logit.gather(1, index).squeeze(1)) ** self.gamma # focal loss
+#
+#         return loss.sum()
 
 class KlLoss(nn.Module):
     def __init__(self, activation = None):

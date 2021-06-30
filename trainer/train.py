@@ -58,7 +58,7 @@ def pggan_train(param):
     f_loss = FocalLoss().to(device)
     kl_loss = KlLoss(activation='softmax').to(device)
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class , labels = samples['img_target']/255, samples['charclass_target'], samples['one_embed_label_target']
+        real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['multi_embed_label_target']
         #ステップの定義
         res = iter / res_step
 
@@ -78,15 +78,16 @@ def pggan_train(param):
         # 文字クラスのone-hotベクトル化
         char_class_oh = torch.eye(char_num)[char_class].to(device)
         # 印象語のベクトル化
-        # labels_oh = Multilabel_OneHot(labels, len(ID), normalize=False).to(device)
-        labels_oh = torch.eye(len(ID))[labels-1].to(device)
+        labels_oh = Multilabel_OneHot(labels, len(ID), normalize=False).to(device)
+        #labels_oh = torch.eye(len(ID))[labels-1].to(device)
         # training Generator
         #画像の生成に必要なノイズ作成
         z1 = torch.randn(batch_len, latent_size * 16)
         z2 = torch.randn(batch_len, latent_size * 16)
         ##画像の生成に必要な印象語ラベルを取得
-        _, _, D_real_class = D_model(real_img, res)
-        gen_label = F.softmax(D_real_class.detach(), dim=1)
+        # _, _, D_real_class = D_model(real_img, res)
+        # gen_label = F.softmax(D_real_class.detach(), dim=1)
+        gen_label = labels_oh
         # ２つのノイズの結合
         z_conc = torch.cat([z1, z2], dim=0).to(device)
         char_class_conc = torch.cat([char_class_oh, char_class_oh], dim=0).to(device)
@@ -104,9 +105,10 @@ def pggan_train(param):
         G_char_loss = (kl_loss(D_fake_char1, char_class_oh) + \
                        kl_loss(D_fake_char2, char_class_oh))/2
         # 印象語分類のロス
-        G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
-                       kl_loss(D_fake_class2, gen_label)) / 2
-        # G_class_loss = (f_loss(D_fake_class1, gen_label) + f_loss(D_fake_class2, gen_label))/2
+        # G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
+        #                kl_loss(D_fake_class2, gen_label)) / 2
+        G_class_loss = (f_loss(D_fake_class1, gen_label) + f_loss(D_fake_class2, gen_label))/2
+
         # mode seeking lossの算出
         lz = torch.mean(torch.abs(fake_img2 - fake_img1)) / torch.mean(
             torch.abs(z2 - z1))
@@ -133,7 +135,8 @@ def pggan_train(param):
         for _ in range(1):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
-            gen_label = F.softmax(D_real_class.detach(), dim=1)
+            # gen_label = F.softmax(D_real_class.detach(), dim=1)
+            gen_label = labels_oh
             gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
             D_real_loss = - torch.mean(D_real_TF)
             fake_img= G_model(z_conc, char_class_conc, gen_label_conc, res)
@@ -143,7 +146,7 @@ def pggan_train(param):
             D_fake2 = D_model(fake_img2.detach(), res)[0]
             D_fake2_loss = torch.mean(D_fake2)
             gp_loss = gradient_penalty(D_model, real_img.data, fake_img1.data, res, real_img.shape[0]) \
-                      + gradient_penalty(D_model, real_img.data, fake_img2.data, res, real_img.shape[0])
+                      +gradient_penalty(D_model, real_img.data, fake_img2.data, res, real_img.shape[0])
             loss_drift = (D_real_TF ** 2).mean()
 
             #Wasserstein lossの計算
@@ -151,8 +154,8 @@ def pggan_train(param):
             # 文字クラス分類のロス
             D_char_loss = kl_loss(D_real_char, char_class_oh)
             # 印象語分類のロス
-            D_class_loss = kl_loss(D_real_class, labels_oh)
-            # D_class_loss = f_loss(D_real_class, labels_oh)
+            #D_class_loss = kl_loss(D_real_class, labels_oh)
+            D_class_loss = f_loss(D_real_class, labels_oh)
             D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
             D_optimizer.zero_grad()
             D_loss.backward()

@@ -69,7 +69,7 @@ def pgmodel_run(opts):
         dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
                                   transform=transform)
         bs = opts.batch_size ##512
-        label_weight = 1 - (torch.tensor(dataset.weight)/sum(dataset.weight()))
+        label_weight = (torch.tensor(dataset.weight).sum()/torch.tensor(dataset.weight)) * (len(dataset.weight)/(torch.tensor(dataset.weight).sum()/torch.tensor(dataset.weight)).sum())
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
 

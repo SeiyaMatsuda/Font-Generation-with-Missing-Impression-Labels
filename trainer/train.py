@@ -91,7 +91,7 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         # _, _, D_real_class = D_model(real_img, res)
         # gen_label = F.softmax(D_real_class.detach(), dim=1)
-        gen_label = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
+        gen_label = Multilabel_OneHot(labels, len(ID), normalize=False).to(device)
         # ２つのノイズの結合
         z_conc = torch.cat([z1, z2], dim=0).to(device)
         char_class_conc = torch.cat([char_class_oh, char_class_oh], dim=0).to(device)
@@ -140,7 +140,7 @@ def pggan_train(param):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
             # gen_label = F.softmax(D_real_class.detach(), dim=1)
-            gen_label = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
+            gen_label = Multilabel_OneHot(labels, len(ID), normalize=False).to(device)
             gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
             D_real_loss = - torch.mean(D_real_TF)
             fake_img= G_model(z_conc, char_class_conc, gen_label_conc, res)
@@ -181,7 +181,7 @@ def pggan_train(param):
         if iter % 500 == 0:
             test_label = ['decorative', 'big', 'shading', 'manuscript', 'ghost']
             test_emb_label = [[ID[key]] for key in test_label]
-            label = Multilabel_OneHot(test_emb_label, len(ID), normalize=True)
+            label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)
             save_path = os.path.join(log_dir, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
             visualizer(save_path, G_model_mavg, test_z, char_num, label, res, device)
             G_model_mavg.train()

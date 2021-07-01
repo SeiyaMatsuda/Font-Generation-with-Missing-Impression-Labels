@@ -24,6 +24,7 @@ def pggan_train(param):
     dataset = param["dataset"]
     DataLoader = param["DataLoader"]
     label_weight = param['label_weight']
+    pos_weight = param['pos_weight']
     device = param['device']
     ID = param['ID']
     char_num = param['char_num']
@@ -58,7 +59,7 @@ def pggan_train(param):
     criterion_pixel = torch.nn.L1Loss().to(device)
     f_loss = FocalLoss().to(device)
     #マルチクラス分類
-    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight).to(device)
+    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight = pos_weight).to(device)
     kl_loss = KlLoss(activation='softmax').to(device)
     for batch_idx, samples in enumerate(databar):
         real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['multi_embed_label_target']

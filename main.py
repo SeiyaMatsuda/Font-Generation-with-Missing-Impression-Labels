@@ -69,12 +69,15 @@ def pgmodel_run(opts):
         dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
                                   transform=transform)
         bs = opts.batch_size ##512
-        label_weight = (dataset.weight.sum()/dataset.weight) * (len(dataset.weight)/(dataset.weight.sum()/dataset.weight).sum())
+        # label_weight = (dataset.weight.sum()/dataset.weight) * (len(dataset.weight)/(dataset.weight.sum()/dataset.weight).sum())
+        label_weight = 1/dataset.weight
+        pos_weight = (dataset.weight.sum() - dataset.weight)/dataset.weight
+
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
 
         param = {'mode': opts.mode, 'emb':opts.emb, 'D_num_critic' : opts.D_num_critic, 'G_num_critic' : opts.G_num_critic, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
-                 'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight,
+                 'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight, 'pos_weight':pos_weight,
                  'DataLoader': DataLoader, 'latent_size':latent_size,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer,
                  'latent_size': latent_size, 'char_num': opts.char_num, 'log_dir':logs_GAN,

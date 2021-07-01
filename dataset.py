@@ -279,7 +279,7 @@ class Myfont_dataset2(torch.utils.data.Dataset):
             else:
                 continue
         self.weight = dict(Counter(sum(label, [])))
-        self.weight = [self.weight[key] if key in self.weight.keys() else 0 for key in self.ID.keys()]
+        self.weight = torch.tensor([self.weight[key] if key in self.weight.keys() else 0 for key in self.ID.keys()]).float()
         self.data_num = len(self.target_dataset)
 
     def __len__(self):

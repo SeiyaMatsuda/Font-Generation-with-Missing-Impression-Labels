@@ -57,7 +57,7 @@ def pggan_train(param):
     #バッチごとの計算
     criterion_pixel = torch.nn.L1Loss().to(device)
     f_loss = FocalLoss().to(device)
-    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight).to(device)
+    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, reduction='sum').to(device)
     kl_loss = KlLoss(activation='softmax').to(device)
     for batch_idx, samples in enumerate(databar):
         real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['multi_embed_label_target']

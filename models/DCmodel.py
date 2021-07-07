@@ -4,12 +4,24 @@ from .common import *
 from .self_attention import Self_Attn
 from mylib import tile_like
 class ACGenerator(nn.Module):
-    def __init__(self,  latent_size = 300, weight,  num_dimension = 300,  char_num = 26):
+    def __init__(self,  weights, z_dim = 300, num_dimension = 300, imp_num = 1574 , char_num = 26, mode = 'CP', emb = 'w2v'):
         super(ACGenerator, self).__init__()
-        self.z_dim = latent_size
+        self.z_dim = z_dim
         self.char_num = char_num
-        self.w2v_layer = ImpEmbedding(weight, sum_weight= False, deepsets = False)
+        self.imp_num = imp_num
+        self.emb = emb
+        if mode == 'CP':
+            sum_weight = False
+            deepsets = True
+        elif mode =='AC':
+            sum_weight = False
+            deepsets = False
+        if emb == 'w2v':
+            self.w2v_layer = ImpEmbedding(weights, sum_weight=False, deepsets=True)
+        elif emb == 'one-hot':
+            num_dimension = imp_num
         self.num_dimension = num_dimension
+        #self.Emb_layer = CustomEmbedding(num_dimension, 64, spectral_norm=True)
         self.layer1 = nn.Sequential(
             nn.Linear(self.z_dim + char_num , 1500),
             nn.BatchNorm1d(1500),
@@ -69,10 +81,19 @@ class ACGenerator(nn.Module):
     def forward(self, noise, labels, char_class, w2v = True):
         y_1 = self.layer1(torch.cat([noise, char_class], dim=1))  # (100,1,1)⇒(300,1,1)
         # 印象情報のw2v
-        if w2v:
-            attr = self.w2v_layer(labels)
-        else:
-            attr = self.w2v_layer(labels, w2v = w2v)
+        if self.emb=='w2v':
+            if w2v:
+                attr = self.w2v_layer(labels)
+            else:
+                attr = self.w2v_layer(labels, w2v = w2v)
+        elif self.emb=='one-hot':
+            attr = labels
+        #印象情報のEmbedding
+        # impression_id = torch.LongTensor(list(range(self.num_dimension)))
+        # impression_id = impression_id.view(1, impression_id.size(0))
+        # impression_id = impression_id.repeat(len(noise), 1)
+        # impression_row = self.Emb_layer(impression_id.to(labels.device))
+        # impression_feature = attr.unsqueeze(2) * impression_row
         y_2 = self.layer2(attr)  # (300,1,1)⇒(1500,1,1)
         x = torch.cat([y_1, y_2], dim = 1)  # y_1 + y_2=(1800,1,1)
         x = self.layer3(x)  # (1800,1,1)⇒(512*8,1,1)

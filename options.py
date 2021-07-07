@@ -20,7 +20,7 @@ def get_parser():
     parser.add_argument('--g_lr', type=float, default=0.0005)
     parser.add_argument('--d_lr', type=float, default=0.0005)
     parser.add_argument('--c_lr', type=float, default=0.0005)
-    parser.add_argument('--D_num_critic', type=int, default=2)
+    parser.add_argument('--D_num_critic', type=int, default=1)
     parser.add_argument('--G_num_critic', type=int, default=1)
     parser.add_argument('--lambda_gp', type=int, default=5)
     parser.add_argument('--num_iterations', type=int, default=100000)

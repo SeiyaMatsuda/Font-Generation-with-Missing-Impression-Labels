@@ -144,7 +144,8 @@ class Generator(nn.Module):
         # conv modules & toRGBs
         self.attention = attention
         scale = 1
-        inchs  = np.array([latent_size + char_num + weight.shape[1], 256, 128,64,32,16], dtype=np.uint32)*scale
+        # inchs  = np.array([latent_size + char_num + weight.shape[1], 256, 128,64,32,16], dtype=np.uint32)*scale
+        inchs  = np.array([latent_size + char_num + 1574, 256, 128,64,32,16], dtype=np.uint32)*scale
         outchs = np.array([256, 128, 64, 32, 16, 8], dtype=np.uint32)*scale
         sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
         firsts = np.array([True, False, False, False, False, False],  dtype=np.bool)
@@ -174,7 +175,7 @@ class Generator(nn.Module):
         y_char = y_char.reshape(y_char.size(0), y_char.size(1), 1, 1)
         y_char = y_char.expand(y_char.size(0), y_char.size(1),4,4)
         # impression embedding
-        y_imp = self.emb_layer(y_imp)
+        # y_imp = self.emb_layer(y_imp)
         y_sc = y_imp.reshape(y_imp.size(0), y_imp.size(1), 1, 1)
         y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1),4,4)
         # attribute embedding
@@ -257,92 +258,3 @@ class Discriminator(nn.Module):
             x, char, imp = self.blocks[n-1-i](x)
         return x, char, imp
 #
-# class Unet(nn.Module):
-#     def __init__(self, weight, char_num = 26):
-#         super().__init__()
-#         super().__init__()
-#
-#         # conv modules & toRGBs
-#         un_scale = 1
-#         up_scale = 2
-#         Under_inchs = np.array([256,128, 64, 32, 16, 8], dtype=np.uint32)*un_scale
-#         Under_outchs  = np.array([512,256,128,64,32,16], dtype=np.uint32)*un_scale
-#         Up_inchs  = np.array([512 + weight.shape[1], 256, 128,64,32,16], dtype=np.uint32)*up_scale
-#         Up_outchs = np.array([256,128, 64,32,16, 8], dtype=np.uint32)*up_scale
-#         Under_sizes = np.array([1,4,8,16,32,64], dtype=np.uint32)
-#         Up_sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
-#         finals = np.array([True, False, False, False, False, False], dtype=np.bool)
-#         firsts =  finals[::-1]
-#         Underblocks, Upblocks, fromRGBs, toRGBs= [], [], [], []
-#         for s_un, s_up, inch_un, inch_up, outch_un, outch_up, final, first in zip(Under_sizes, Up_sizes, Under_inchs, Under_outchs, Up_inchs, Up_outchs, finals, firsts):
-#             fromRGBs.append(nn.Conv2d(1, inch_un, 1, padding=0))
-#             toRGBs.append(nn.Conv2d(outch_up, 1, 1, padding=0))
-#             Underblocks.append(ConvModuleUnet(s_un, inch_un, outch_un))
-#             Upblocks.append(DeConvModuleUnet(s_up, inch_up, outch_up))
-#
-#         self.fromRGBs = nn.ModuleList(fromRGBs)
-#         self.toRGBs = nn.ModuleList(toRGBs)
-#         self.Underblocks = nn.ModuleList(Underblocks)
-#         self.Upblocks = nn.ModuleList(Upblocks)
-#
-#     def forward(self, input, res):
-#         # for the highest resolution
-#         res = min(res, len(self.blocks))
-#
-#         # get integer by floor
-#         eps = 1e-7
-#         n = max(int(res - eps), 0)
-#
-#         # high resolution
-#         x_big = self.fromRGBs[n](input)
-#         x_big = self.blocks[n](x_big)
-#
-#         if n == 0:
-#             x = x_big
-#         else:
-#             # low resolution
-#             x_sml = F.adaptive_avg_pool2d(input, x_big.shape[2:4])
-#             x_sml = self.fromRGBs[n - 1](x_sml)
-#             alpha = res - int(res - eps)
-#             x = (1 - alpha) * x_sml + alpha * x_big
-#
-#         for i in range(n):
-#             x, char, imp = self.blocks[n - 1 - i](x)
-#         return x, char, imp
-#
-#         x_original = self.conv_original_size0(input)
-#         x_original = self.conv_original_size1(x_original)
-#
-#         layer0 = self.layer0(input)
-#         layer1 = self.layer1(layer0)
-#         layer2 = self.layer2(layer1)
-#         layer3 = self.layer3(layer2)
-#         layer4 = self.layer4(layer3)
-#
-#         layer4 = self.layer4_1x1(layer4)
-#         x = self.upsample(layer4)
-#         layer3 = self.layer3_1x1(layer3)
-#         x = torch.cat([x, layer3], dim=1)
-#         x = self.conv_up3(x)
-#
-#         x = self.upsample(x)
-#         layer2 = self.layer2_1x1(layer2)
-#         x = torch.cat([x, layer2], dim=1)
-#         x = self.conv_up2(x)
-#
-#         x = self.upsample(x)
-#         layer1 = self.layer1_1x1(layer1)
-#         x = torch.cat([x, layer1], dim=1)
-#         x = self.conv_up1(x)
-#
-#         x = self.upsample(x)
-#         layer0 = self.layer0_1x1(layer0)
-#         x = torch.cat([x, layer0], dim=1)
-#         x = self.conv_up0(x)
-#
-#         x = self.upsample(x)
-#         x = torch.cat([x, x_original], dim=1)
-#         x = self.conv_original_size2(x)
-#
-#         out = self.conv_last(x)
-#         return out

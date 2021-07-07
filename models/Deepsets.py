@@ -33,23 +33,13 @@ class DeepSets(nn.Module):
            nn.Linear(self.d_dim, 300),
         )
 
-    def calc_sets(self, x):
-        mask = ((x != 0).sum(1) > 0)
-        x = x[mask]
-        x = x.reshape(1, -1, 300)
-        phi_output = self.phi(x)
-        sum_output = phi_output.mean(1)
-        rho_output = self.rho(sum_output)
-        return rho_output
 
     def forward(self, x):
-        # for x in input:
-        #     mask = ((x!=0).sum(1)>0)
-        #     x = x[mask]
-        #     x = x.reshape(1, -1, 300)
-        phi_output = self.phi(x)
-        sum_output = phi_output.mean(1)
-        # sum_output = torch.cat([ph[((x_!=0).sum(1)>0)].mean(0).view(1, -1) for x_, ph in zip(x, phi_output)], dim=0)
+        mask = (x!=0)
+        imp_num = (mask.sum(2)>0).sum(1).view(-1,1)
+        phi_output = self.phi(x) * mask
+        sum_output = phi_output.sum(1)/imp_num
+        # sum_output = phi_output.mean(1)
         rho_output = self.rho(sum_output)
         return rho_output
 

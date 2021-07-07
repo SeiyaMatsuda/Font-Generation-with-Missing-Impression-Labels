@@ -62,7 +62,7 @@ class ConvModuleD(nn.Module):
                 nn.Linear(outch * 4 * 4, 1024),
                 nn.Dropout(p=0.5),
                 nn.LeakyReLU(0.2, inplace=True),
-                nn.Linear(1024, imp_num)]
+                nn.Linear(1024, 300)]
 
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)
@@ -144,8 +144,7 @@ class Generator(nn.Module):
         # conv modules & toRGBs
         self.attention = attention
         scale = 1
-        # inchs  = np.array([latent_size + char_num + weight.shape[1], 256, 128,64,32,16], dtype=np.uint32)*scale
-        inchs  = np.array([latent_size + char_num + 1574, 256, 128,64,32,16], dtype=np.uint32)*scale
+        inchs  = np.array([latent_size + char_num + weight.shape[1], 256, 128,64,32,16], dtype=np.uint32)*scale
         outchs = np.array([256, 128, 64, 32, 16, 8], dtype=np.uint32)*scale
         sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
         firsts = np.array([True, False, False, False, False, False],  dtype=np.bool)
@@ -155,7 +154,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(Attention(outch, weight.shape[1], len(sizes) - (idx+1)))
-        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=True)
+        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
         if attention:
@@ -175,7 +174,7 @@ class Generator(nn.Module):
         y_char = y_char.reshape(y_char.size(0), y_char.size(1), 1, 1)
         y_char = y_char.expand(y_char.size(0), y_char.size(1),4,4)
         # impression embedding
-        # y_imp = self.emb_layer(y_imp)
+        y_imp = self.emb_layer(y_imp)
         y_sc = y_imp.reshape(y_imp.size(0), y_imp.size(1), 1, 1)
         y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1),4,4)
         # attribute embedding
@@ -211,7 +210,7 @@ class Generator(nn.Module):
 
         if RevGrad == True:
             x = self.RevGrad(x)
-        return torch.sigmoid(x)
+        return torch.sigmoid(x), y_imp
 
 class Discriminator(nn.Module):
     def __init__(self, imp_num = 1574, char_num = 26):

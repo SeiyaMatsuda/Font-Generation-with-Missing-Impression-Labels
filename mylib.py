@@ -314,7 +314,7 @@ def visualizer(path, G_model, z, char_num, label, res, device):
     z = tile(z, 0, char_num).repeat(label_shape[0], 1).to(device)
     label = tile(label, 0, char_num * z_shape[0]).to(device)
     with torch.no_grad():
-        samples = G_model(z, char, label, res).data.cpu()
+        samples = G_model(z, char, label, res)[0].data.cpu()
         samples = F.interpolate(samples, (128, 128), mode='nearest')
         save_image(samples, path, nrow=char_num)
 

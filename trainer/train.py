@@ -119,8 +119,7 @@ def pggan_train(param):
         eps = 1 * 1e-7
         loss_lz = 1 / (lz + eps)
 
-        G_loss = G_TF_loss + G_char_loss+ G_class_loss
-        # +loss_lz
+        G_loss = G_TF_loss + G_char_loss + G_class_loss + loss_lz
         G_optimizer.zero_grad()
         G_loss.backward()
         del G_loss

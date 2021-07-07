@@ -6,6 +6,7 @@ import torch.nn.init as init
 from sklearn.decomposition import PCA
 import torch.nn.utils as utils
 from math import sqrt
+import random
 # from .condbatchnorm import CondBatchNorm2d
 import torch.nn.functional as F
 # from .self_attention import Self_Attn
@@ -365,6 +366,9 @@ class ImpEmbedding(nn.Module):
         if w2v:
             labels = labels.view(labels.size(0), labels.size(1), 1)
             attr = torch.mul(self.embed.weight.data, labels)
+            attr = list(map(lambda x:x[x.sum(2)!=0], attr.split(1)))
+            attr = torch.cat(list(map(lambda x:x[torch.tensor(random.choices(range(len(x)), k=64))], attr)), dim=0)
+            attr = attr.view(-1, 64, 300)
         else:
             attr = labels
         if self.sum_weight:

@@ -62,7 +62,7 @@ class ConvModuleD(nn.Module):
                 nn.Linear(outch * 4 * 4, 1024),
                 nn.Dropout(p=0.5),
                 nn.LeakyReLU(0.2, inplace=True),
-                nn.Linear(1024, 300)]
+                nn.Linear(1024, imp_num)]
 
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)
@@ -154,7 +154,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(Attention(outch, weight.shape[1], len(sizes) - (idx+1)))
-        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
+        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=True)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
         if attention:

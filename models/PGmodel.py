@@ -211,7 +211,7 @@ class Generator(nn.Module):
 
         if RevGrad == True:
             x = self.RevGrad(x)
-        return torch.sigmoid(x), y_imp
+        return torch.tanh(x), y_imp
     def impression_embedding(self, y_imp):
         y_imp = self.emb_layer(y_imp)
         return y_imp

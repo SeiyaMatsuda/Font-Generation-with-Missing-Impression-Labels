@@ -316,6 +316,7 @@ def visualizer(path, G_model, z, char_num, label, res, device):
     with torch.no_grad():
         samples = G_model(z, char, label, res)[0].data.cpu()
         samples = F.interpolate(samples, (128, 128), mode='nearest')
+        samples = samples/2 + 0.5
         save_image(samples, path, nrow=char_num)
 
 class FocalLoss(nn.Module):

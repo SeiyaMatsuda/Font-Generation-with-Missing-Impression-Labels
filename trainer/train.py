@@ -63,7 +63,7 @@ def pggan_train(param):
     kl_loss = KlLoss(activation='softmax').to(device)
     mse_loss = torch.nn.MSELoss()
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['multi_embed_label_target']
+        real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['one_embed_label_target']
         #ステップの定義
         res = iter / res_step
 
@@ -83,8 +83,8 @@ def pggan_train(param):
         # 文字クラスのone-hotベクトル化
         char_class_oh = torch.eye(char_num)[char_class].to(device)
         # 印象語のベクトル化
-        labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
-        # labels_oh = torch.eye(len(ID))[labels-1].to(device)
+        # labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
+        labels_oh = torch.eye(len(ID))[labels-1].to(device)
         # training Generator
         #画像の生成に必要なノイズ作成
         z1 = torch.randn(batch_len, latent_size * 16)

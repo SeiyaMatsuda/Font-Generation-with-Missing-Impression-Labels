@@ -58,7 +58,7 @@ def pgmodel_run(opts):
     real_acc_list = []
     fake_acc_list = []
 
-    transform = Transform()
+    transform = transforms.Compose()
     #training param
     epochs = opts.num_epochs
     res_step = opts.res_step #10000

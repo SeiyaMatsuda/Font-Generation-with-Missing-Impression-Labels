@@ -63,7 +63,7 @@ def pggan_train(param):
     kl_loss = KlLoss(activation='softmax').to(device)
     mse_loss = torch.nn.MSELoss()
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
+        real_img, char_class, labels = samples['img_target']/255, samples['charclass_target'], samples['multi_embed_label_target']
         #ステップの定義
         res = iter / res_step
 

@@ -140,7 +140,7 @@ def pggan_train(param):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
             # gen_label = F.softmax(D_real_class.detach(), dim=1)
-            gen_label = D_real_class
+            gen_label = D_real_class.detach()
             # gen_label = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
             gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
             D_real_loss = - torch.mean(D_real_TF)

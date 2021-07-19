@@ -366,7 +366,7 @@ class KlLoss(nn.Module):
             cross_entropy = -(target * F.logsigmoid(input)).sum()
         else:
             cross_entropy = -(target * input).sum()
-        return (cross_entropy - entropy) / input.size(0)
+        return (cross_entropy - entropy) / (input.size(0) + 1e-7)
 
 if __name__ == '__main__':
     loss = FocalLoss()

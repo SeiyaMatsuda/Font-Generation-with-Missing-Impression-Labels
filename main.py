@@ -5,6 +5,7 @@ from dataset import *
 from torchvision.utils import make_grid, save_image
 from models.PGmodel import Generator, Discriminator
 from torchinfo import summary
+from torch.autograd import detect_anomaly
 def pgmodel_run(opts):
     #各種必要なディレクトリの作成
     log_dir = os.path.join(opts.root, opts.dt_now)
@@ -58,7 +59,7 @@ def pgmodel_run(opts):
     real_acc_list = []
     fake_acc_list = []
 
-    transform = transforms.Compose([])
+    transform = Transform()
     #training param
     epochs = opts.num_epochs
     res_step = opts.res_step #10000
@@ -83,7 +84,6 @@ def pgmodel_run(opts):
                  'latent_size': latent_size, 'char_num': opts.char_num, 'log_dir':logs_GAN,
                 'device': opts.device, "res_step" : res_step, "iter_start":iter_start,
                  'Tensor': opts.Tensor, 'LongTensor': opts.LongTensor,'ID': ID}
-
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]+1
         D_TF_loss_list.append(check_point["D_epoch_TF_losses"])

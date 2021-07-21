@@ -15,9 +15,9 @@ class ConvModuleG(nn.Module):
         if first:
             layers = [
                 Conv2d(inch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
                 Conv2d(outch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
 
             ]
 
@@ -25,9 +25,9 @@ class ConvModuleG(nn.Module):
             layers = [
                 nn.Upsample((out_size, out_size), mode='nearest'),
                 Conv2d(inch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
                 Conv2d(outch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
             ]
 
         self.layers = nn.Sequential(*layers)
@@ -51,9 +51,9 @@ class ConvModuleD(nn.Module):
             layers = [
                 Minibatch_std(),  # final block only
                 Conv2d(inch + 1, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
                 Conv2d(outch, outch, 4, padding=0),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
             ]
             layer_TF = [nn.Conv2d(outch, 1, 1, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 1, padding=0)]
@@ -61,7 +61,7 @@ class ConvModuleD(nn.Module):
             layer_imp = [nn.Flatten(),
                 nn.Linear(outch * 4 * 4, 300),
                 nn.Dropout(p=0.5),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
                 nn.Linear(300, 300)]
 
             self.layer_TF = nn.Sequential(*layer_TF)
@@ -70,9 +70,9 @@ class ConvModuleD(nn.Module):
         else:
             layers = [
                 Conv2d(inch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
                 Conv2d(outch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2, inplace=False),
                 nn.AdaptiveAvgPool2d((out_size, out_size)),
             ]
 
@@ -91,52 +91,6 @@ class ConvModuleD(nn.Module):
             x_imp = None
         return x_TF, x_char, x_imp
 #
-# class ConvModuleUnet(nn.Module):
-#     '''
-#     Args:
-#         out_size: (int), Ex.: 16 (resolution)
-#         inch: (int),  Ex.: 256
-#         outch: (int), Ex.: 128
-#     '''
-#     def __init__(self, out_size, inch, outch):
-#         super().__init__()
-#
-#         layers = [
-#             nn.Upsample((out_size, out_size), mode='nearest'),
-#             Conv2d(inch, outch, 3, padding=1),
-#             nn.LeakyReLU(0.2, inplace=True),
-#             Conv2d(outch, outch, 3, padding=1),
-#             nn.LeakyReLU(0.2, inplace=True),
-#         ]
-#
-#         self.layers = nn.Sequential(*layers)
-#
-#     def forward(self, x):
-#         return self.layers(x)
-# class DeConvModuleUnet(nn.Module):
-#     '''
-#     Args:
-#         out_size: (int), Ex.: 16 (resolution)
-#         inch: (int),  Ex.: 256
-#         outch: (int), Ex.: 128
-#     '''
-#
-#     def __init__(self, out_size, inch, outch, char_num = 26, imp_num = 1574, final=False):
-#         super().__init__()
-#         layers = [
-#             Conv2d(inch, outch, 3, padding=1),
-#             nn.LeakyReLU(0.2, inplace=True),
-#             Conv2d(outch, outch, 3, padding=1),
-#             nn.LeakyReLU(0.2, inplace=True),
-#             nn.AdaptiveAvgPool2d((out_size, out_size)),
-#         ]
-#
-#         self.layers = nn.Sequential(*layers)
-#
-#     def forward(self, x):
-#         x = self.layers(x)
-#         return x
-
 class Generator(nn.Module):
     def __init__(self, weight, latent_size=512, char_num=26, attention=False):
         super().__init__()

@@ -119,7 +119,7 @@ def pggan_train(param):
         eps = 1 * 1e-7
         loss_lz = 1 / (lz + eps)
 
-        G_loss = G_TF_loss + G_char_loss + G_class_loss * 10 + loss_lz
+        G_loss = G_TF_loss + G_char_loss + G_class_loss + loss_lz
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()
@@ -161,7 +161,7 @@ def pggan_train(param):
             # 印象語分類のロス
             # D_class_loss = kl_loss(D_real_class, labels_oh)
             D_class_loss = mse_loss(D_real_class, y_imp)
-            D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss * 10
+            D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
             D_optimizer.zero_grad()
             D_loss.backward()
             D_optimizer.step()

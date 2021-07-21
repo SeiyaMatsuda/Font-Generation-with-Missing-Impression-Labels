@@ -109,7 +109,7 @@ def pggan_train(param):
                        kl_loss(D_fake_char2, char_class_oh))/2
         # 印象語分類のロス
         G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
-                       kl_loss(D_fake_class2, gen_label)) / 2
+                       kl_loss(D_fake_class2, gen_label))/ 2
         # G_class_loss = (mse_loss(D_fake_class1, gen_label) + mse_loss(D_fake_class2, gen_label))/2
 
         # mode seeking lossの算出

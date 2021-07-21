@@ -358,7 +358,7 @@ class KlLoss(nn.Module):
         super(KlLoss, self).__init__()
         self.activation = activation
     def forward(self, input, target):
-        entropy = -(((target[target != 0] * target[target != 0])).log()).sum()
+        entropy = -(target[target != 0] * target[target != 0].log()).sum()
         if self.activation == 'softmax':
             cross_entropy = -(target * F.log_softmax(input, dim=1)).sum()
         elif self.activation == 'sigmoid':

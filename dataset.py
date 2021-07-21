@@ -41,135 +41,10 @@ class Transform(object):
     def __call__(self, sample):
         return (sample/127.5)-1
 
-class dataset_A(torch.utils.data.Dataset):
-
-    def __init__(self, data, label_data, vocab, transform=None):
-        self.transform = transform
-        self.data_num = len(data)
-        self.data = []
-        counter = Counter(itertools.chain.from_iterable(label_data))
-        self.label = []
-        self.prob={}
-        for i in range(self.data_num):
-            for key in label_data[i]:
-                if key not in self.prob.keys():
-                    self.prob[key] = (1 / self.data_num) + (1 / len(label_data[i]))
-                else:
-                    self.prob[key] = self.prob[key] + (1 / len(label_data)) + (1 / len(label_data[i]))
-        for i in range(self.data_num):
-            x = data[i][0].reshape(-1,64,64)
-            #mean.ver
-            #y=(torch.mean(torch.load(Label_data[i]),0)).to("cpu").detach().numpy().copy()
-            #random.ver
-            y_=[]
-            tag_prob = []
-            for key in label_data[i]:
-                # before
-                # y_.append(vocab[key])
-                # after
-                y_.append(key)
-                tag_prob.append(self.prob[key])
-            try:
-                r = return_index(y_, tag_prob)
-                y = y_[r[0]]
-                self.data.append(x)
-                self.label.append(y)
-            except IndexError:
-                continue
-        self.data_num = len(self.data)
-
-    def __len__(self):
-        return self.data_num
-
-    def __getitem__(self, idx):
-        out_data = self.data[idx]
-        out_label = self.label[idx]
-        if self.transform:
-            out_data = self.transform(out_data)
-        return {'out_data':out_data,
-                'out_label':out_label}
-
-class datasets(torch.utils.data.Dataset):
-
-    def __init__(self, data, label_data, ID, transform=None):
-        self.transform = transform
-        self.data_num = len(data)
-        self.data = []
-        self.label = []
-        self.prob={}
-        self.label_ID = []
-        for i in range(self.data_num):
-            if len(label_data[i])!=0:
-                self.data.append(data[i][0].reshape(-1,64,64))
-                self.label.append(label_data[i])
-                self.label_ID.append([ID[key] for key in label_data[i]])
-            else:
-                continue
-        self.data_num = len(self.data)
-
-    def __len__(self):
-        return self.data_num
-
-    def __getitem__(self, idx):
-        out_data = self.data[idx]
-        out_label = self.label[idx]
-        out_label_ID = self.label_ID[idx]
-        if self.transform:
-            out_data = self.transform(out_data)
-        return {'out_data':out_data,
-                'out_label':out_label,
-                'label_ID':out_label_ID}
-
-class Myfont_classifier(torch.utils.data.Dataset):
-    def __init__(self, data, label, vocab, optim=None, transform=None):
-        self.transform = transform
-        self.data = []
-        self.label = []
-        self.vocab = vocab
-        self.optim = optim
-        self.le = LabelEncoder()
-        for i in range(len(data)):
-            self.data.extend([data[i] for _ in range(len(label[i]))])
-            self.label.extend([y for y in label[i]])
-        # p = list(zip(self.data, self.label))
-        # random.shuffle(p)
-        # self.data, self.label = zip(*p)
-        if self.optim == 'vector':
-            self.label = [vocab[l]for l in self.label]
-        elif self.optim == 'label':
-            self.le.fit(list(self.vocab.keys()))
-            self.label = self.le.transform(self.label)
-            self.w = sorted(Counter(self.label).items(), key=lambda a: a[0])
-            self.w = [1 / w for _, w in self.w]
-            # self.label = np.eye(len(vocab.keys()))[self.label]
-
-        elif self.optim == None:
-            pass
-
-        self.data_num = len(self.data)
-
-    def __len__(self):
-        return self.data_num
-
-    def __getitem__(self, idx):
-        out_data = self.data[idx]
-        out_label = self.label[idx]
-        if self.transform:
-                out_data = torch.cat([self.transform(o.astype(np.float32)) for o in out_data])
-        return out_data, out_label
-
-    def weight(self):
-        self.w = torch.Tensor(self.w)
-        return self.w
-
-    def inverse_transform(self,a):
-        return list(self.le.inverse_transform(a))
-
 class Myfont_dataset(torch.utils.data.Dataset):
     def __init__(self, data, label, ID,  transform=None, char_num = 52, n_style = 4, img_size = 64):
         self.transform = transform
         self.data = []
-        self.label = []
         self.char_class = []
         self.dataset = []
         self.char_num = char_num
@@ -181,52 +56,33 @@ class Myfont_dataset(torch.utils.data.Dataset):
         self.data_num = len(label)
         self.count1 = 0
         self.weight = dict(Counter(sum(label, [])))
-        self.weight = [self.weight[key] if key in self.weight.keys() else 0 for key in self.ID.keys()]
-        label_dict = {}
-        # 特定のラベルが選ばれる期待値を算出
+        self.weight = torch.tensor([self.weight[key] if key in self.weight.keys() else 0 for key in self.ID.keys()]).float()
         for idx, ll in enumerate(label):
-            subset = set(ID.keys()) & set(ll)
-            if subset:
-                for key in subset:
-                    if key in label_dict.keys():
-                        label_dict[key].append(idx)
-                    else:
-                        label_dict[key] = [idx]
-            else:
+            if len(ll)==0:
                 continue
-        for key, values in label_dict.items():
-            if len(values)>=30:
-                idx_num = random.sample(values, 30)
-                self.label = key
-                self.embed_label = self.ID[self.label]
-                for i in idx_num:
-                    for j in range(char_num):
-                        self.data = data[i][j].astype(np.float32).reshape(-1, self.img_size, self.img_size)
-                        self.char_class = j
-                        self.dataset.append([self.data, self.label, self.char_class, self.embed_label])
+            self.multi_label = ll
+            self.multi_embed_label = list(map(lambda x: ID[x], self.multi_label))
+            self.one_label = random.choices(ll, k = char_num)
+            self.one_embed_label = list(map(lambda x:ID[x], self.one_label))
+            for j in range(char_num):
+                self.data = data[idx][j].astype(np.float32).reshape(-1, self.img_size, self.img_size)
+                self.char_class = j
+                self.dataset.append([self.data, self.one_label[j], self.multi_label, self.char_class, self.one_embed_label[j], self.multi_embed_label])
         self.data_num = len(self.dataset)
     def __len__(self):
         return self.data_num
 
     def __getitem__(self, idx):
-        img, label,  \
-        charclass, embed_label \
+        img, one_label,  multi_label, \
+        charclass, one_embed_label, multi_embed_label \
             = self.dataset[idx]
-        # Get style samples
-        random.shuffle(self.chars)
-        style_chars = self.chars[:self.n_style]
-        style_imgs = []
-        styles_index = list(map(lambda x: x+idx-(idx % self.char_num), style_chars))
-        for char in styles_index:
-            style_imgs.append(self.transform(self.dataset[char][0]))
-
-        style_imgs = np.concatenate(style_imgs)
 
         return {"img": self.transform(img),
-                "label": label,
+                "one_label": one_label,
+                "multi_label": multi_label,
                 "charclass": charclass,
-                "embed_label": embed_label,
-                "styles": style_imgs,
+                "one_embed_label": one_embed_label,
+                'multi_embed_label': multi_embed_label
                 }
 
 

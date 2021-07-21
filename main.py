@@ -67,10 +67,9 @@ def pgmodel_run(opts):
     for epoch in range(epochs):
         start_time = time.time()
 
-        dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
+        dataset = Myfont_dataset(data, opts.impression_word_list, ID, char_num=opts.char_num,
                                   transform=transform)
-        bs = opts.batch_size ##512
-        # label_weight = (dataset.weight.sum()/dataset.weight) * (len(dataset.weight)/(dataset.weight.sum()/dataset.weight).sum())
+        bs = opts.batch_size
         label_weight = 1/dataset.weight
         pos_weight = (dataset.weight.sum() - dataset.weight)/dataset.weight
 

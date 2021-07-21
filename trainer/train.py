@@ -59,11 +59,11 @@ def pggan_train(param):
     criterion_pixel = torch.nn.L1Loss().to(device)
     f_loss = FocalLoss().to(device)
     #マルチクラス分類
-    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight = pos_weight).to(device)
+    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight=pos_weight).to(device)
     kl_loss = KlLoss(activation='softmax').to(device)
     mse_loss = torch.nn.MSELoss()
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['one_embed_label_target']
+        real_img, char_class, labels = samples['img'], samples['charclass'], samples['one_embed_label']
         #ステップの定義
         res = iter / res_step
 
@@ -91,13 +91,12 @@ def pggan_train(param):
         z2 = torch.randn(batch_len, latent_size * 16)
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
-        # gen_label = F.softmax(D_real_class.detach(), dim=1)
-        gen_label = D_real_class
+        gen_label = F.softmax(D_real_class.detach(), dim=1)
         # ２つのノイズの結合
         z_conc = torch.cat([z1, z2], dim=0).to(device)
         char_class_conc = torch.cat([char_class_oh, char_class_oh], dim=0).to(device)
         gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
-        fake_img, _ = G_model(z_conc, char_class_conc, gen_label_conc, res, emb=False)
+        fake_img, _ = G_model(z_conc, char_class_conc, gen_label_conc, res)
         fake_img1, fake_img2 = torch.split(fake_img, z1.size(0), dim=0)
         D_fake_TF1, D_fake_char1, D_fake_class1 = D_model(fake_img1, res)
         D_fake_TF2,  D_fake_char2, D_fake_class2 = D_model(fake_img2, res)
@@ -109,9 +108,9 @@ def pggan_train(param):
         G_char_loss = (kl_loss(D_fake_char1, char_class_oh) + \
                        kl_loss(D_fake_char2, char_class_oh))/2
         # 印象語分類のロス
-        # G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
-        #                kl_loss(D_fake_class2, gen_label)) / 2
-        G_class_loss = (mse_loss(D_fake_class1, gen_label) + mse_loss(D_fake_class2, gen_label))/2
+        G_class_loss = (kl_loss(D_fake_class1, gen_label) + \
+                       kl_loss(D_fake_class2, gen_label)) / 2
+        # G_class_loss = (mse_loss(D_fake_class1, gen_label) + mse_loss(D_fake_class2, gen_label))/2
 
         # mode seeking lossの算出
         lz = torch.mean(torch.abs(fake_img2 - fake_img1)) / torch.mean(
@@ -138,13 +137,13 @@ def pggan_train(param):
         for _ in range(1):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
-            # gen_label = F.softmax(D_real_class.detach(), dim=1)
-            gen_label = D_real_class.detach()
+            gen_label = F.softmax(D_real_class.detach(), dim=1)
+            # gen_label = D_real_class.detach()
             # gen_label = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
             gen_label_conc = torch.cat([gen_label, gen_label], dim=0).to(device)
             D_real_loss = - torch.mean(D_real_TF)
-            y_imp = G_model.module.impression_embedding(labels_oh).to(device)
-            fake_img, _ = G_model(z_conc, char_class_conc, gen_label_conc, res, emb=False)
+            # y_imp = G_model.module.impression_embedding(labels_oh).to(device)
+            fake_img, _ = G_model(z_conc, char_class_conc, gen_label_conc, res)
             fake_img1, fake_img2 = torch.split(fake_img, z1.size(0), dim=0)
             D_fake1 = D_model(fake_img1.detach(), res)[0]
             D_fake1_loss = torch.mean(D_fake1)
@@ -159,8 +158,8 @@ def pggan_train(param):
             # 文字クラス分類のロス
             D_char_loss = kl_loss(D_real_char, char_class_oh)
             # 印象語分類のロス
-            # D_class_loss = kl_loss(D_real_class, labels_oh)
-            D_class_loss = mse_loss(D_real_class, y_imp)
+            D_class_loss = kl_loss(D_real_class, labels_oh)
+            # D_class_loss = mse_loss(D_real_class, y_imp)
             D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
             D_optimizer.zero_grad()
             D_loss.backward()

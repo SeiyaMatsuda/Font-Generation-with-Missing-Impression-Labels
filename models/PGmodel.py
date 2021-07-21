@@ -51,18 +51,18 @@ class ConvModuleD(nn.Module):
             layers = [
                 Minibatch_std(),  # final block only
                 Conv2d(inch + 1, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
+                nn.LeakyReLU(0.2, inplace=True),
                 Conv2d(outch, outch, 4, padding=0),
-                nn.LeakyReLU(0.2, inplace=False),
+                nn.LeakyReLU(0.2, inplace=True),
             ]
             layer_TF = [nn.Conv2d(outch, 1, 1, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 1, padding=0)]
             # layer_imp = [nn.Conv2d(outch, imp_num, 1, padding=0)]
             layer_imp = [nn.Flatten(),
-                nn.Linear(outch * 4 * 4, 300),
+                nn.Linear(outch * 4 * 4, 2 * imp_num),
                 nn.Dropout(p=0.5),
-                nn.LeakyReLU(0.2, inplace=False),
-                nn.Linear(300, 300)]
+                nn.LeakyReLU(0.2, inplace=True),
+                nn.Linear(2 * imp_num, imp_num)]
 
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)

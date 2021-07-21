@@ -35,10 +35,7 @@ class DeepSets(nn.Module):
 
 
     def forward(self, x):
-        # mask = (x!=0)
-        # imp_num = (mask.sum(2)>0).sum(1).view(-1,1)
         phi_output = self.phi(x)
-        # sum_output = phi_output.sum(1)/imp_num
         sum_output = phi_output.mean(1)
         rho_output = self.rho(sum_output)
         return rho_output

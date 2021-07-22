@@ -108,7 +108,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(Attention(outch, weight.shape[1], len(sizes) - (idx+1)))
-        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
+        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=True)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
         if attention:

@@ -15,7 +15,7 @@ def get_parser():
     parser.add_argument('--num_epochs', type=int, default=1000)
     parser.add_argument('--latent_size', type=int, default=256)
     parser.add_argument('--res_step', type=int, default=15000)
-    parser.add_argument('--char_num', type=int, default=5)
+    parser.add_argument('--char_num', type=int, default=26)
     parser.add_argument('--device_count', type=int, default=torch.cuda.device_count())
     parser.add_argument('--g_lr', type=float, default=0.001)
     parser.add_argument('--d_lr', type=float, default=0.001)

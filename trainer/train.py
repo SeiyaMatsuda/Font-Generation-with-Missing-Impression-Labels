@@ -37,6 +37,7 @@ def pggan_train(param):
     iter_start = param["iter_start"]
     log_dir = param['log_dir']
     G_model_mavg = param["G_model_mavg"]
+    writer = param['writer']
     ##training start
     G_model.train()
     D_model.train()
@@ -173,8 +174,17 @@ def pggan_train(param):
         fake_pred = 1 * (torch.sigmoid(torch.cat([D_fake1, D_fake2], axis=0)) > 0.5).detach().cpu()
         real_TF = torch.ones(real_pred.size(0))
         fake_TF = torch.zeros(fake_pred.size(0))
-        real_acc.append((real_pred ==real_TF).float().sum().item()/len(real_pred))
-        fake_acc.append((fake_pred == fake_TF).float().sum().item()/len(fake_pred))
+        r_acc = (real_pred == real_TF).float().sum().item() / len(real_pred)
+        f_acc = (fake_pred == fake_TF).float().sum().item()/len(fake_pred)
+        real_acc.append(r_acc)
+        fake_acc.append(f_acc)
+
+        ##tensor bord
+        # writer.add_scalars("TF_loss", {'D_TF_loss': D_TF_loss, 'G_TF_loss': G_TF_loss}, iter)
+        # writer.add_scalars("class_loss", {'D_class_loss': D_class_loss, 'G_class_loss': G_class_loss}, iter)
+        # writer.add_scalars("char_loss", {'D_char_loss': D_char_loss, 'G_char_loss': G_char_loss}, iter)
+        # writer.add_scalars("Acc", {'real_acc': r_acc, 'fake_acc': f_acc}, iter)
+
         iter += 1
 
         if iter % 500 == 0:

@@ -181,27 +181,64 @@ class Myfont_dataset2(torch.utils.data.Dataset):
 
     def inverse_transform(self,a):
         return list(self.le.inverse_transform(a))
+
+
+class Myfont_dataset3(torch.utils.data.Dataset):
+    def __init__(self, data, label, ID,  transform=None, char_num = 52, n_style = 4, img_size = 64):
+        self.transform = transform
+        self.data = []
+        self.char_class = []
+        self.dataset = []
+        self.char_num = char_num
+        self.n_style = n_style
+        self.img_size = img_size
+        self.ID = ID
+        self.char_idx_offset = 0
+        self.chars = list(range(self.char_idx_offset, self.char_idx_offset+self.char_num))
+        self.data_num = len(label)
+        self.count1 = 0
+        self.weight = dict(Counter(sum(label, [])))
+        self.weight = torch.tensor([self.weight[key] if key in self.weight.keys() else 0 for key in self.ID.keys()]).float()
+        for key, value in tqdm.tqdm(ID.items(), total=len(ID)):
+            self.label = key
+            self.embed_label = value
+            idx = [idx for idx, ll in enumerate(label) if key in ll]
+            idx = random.choices(idx, k=10)
+            for i in idx:
+                for j in range(char_num):
+                    self.data = data[i][j].astype(np.float32).reshape(-1, self.img_size, self.img_size)
+                    self.char_class = j
+                    self.dataset.append([self.data, self.label, self.char_class, self.embed_label])
+        self.data_num = len(self.dataset)
+    def __len__(self):
+        return self.data_num
+
+    def __getitem__(self, idx):
+        img, label, charclass, embed_label \
+            = self.dataset[idx]
+
+        return {"img": self.transform(img),
+                "label": label,
+                "charclass": charclass,
+                "embed_label": embed_label
+                }
+
+
+    def weight(self):
+        self.w = torch.Tensor(self.w)
+        return self.w
+
+    def inverse_transform(self,a):
+        return list(self.le.inverse_transform(a))
 if __name__=="__main__":
     parser = get_parser()
     opts = parser.parse_args()
     data = np.array([np.load(d) for d in opts.data])
     transform = transforms.Compose(
         [Transform()])
-    trained_embed_model = word2vec.word2vec()
-    word_vectors = trained_embed_model
-    weights = word_vectors.vectors
-    #ID = {key: idx+1 for idx, key in enumerate(trained_embed_model.vocab.keys())}
     ID = {}
-    c = 1
-    mask = []
-    for idx, key in enumerate(trained_embed_model.vocab.keys()):
-        if key in opts.w2v_vocab.keys():
-            ID[key] = c
-            c+=1
-            mask.append(idx)
-        else:
-            continue
-    data = Myfont_dataset(data, opts.correct_impression_word_list, ID, char_num = 26, transform=transform)
+    ID = {key: idx + 1 for idx, key in enumerate(opts.w2v_vocab)}
+    data = Myfont_dataset3(data, opts.correct_impression_word_list, ID, char_num = 26, transform=transform)
     dataloader = torch.utils.data.DataLoader(data, batch_size=64, shuffle=True, collate_fn = collate_fn)
     for t in tqdm.tqdm(dataloader,total= len(dataloader)):
         exit()

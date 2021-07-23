@@ -5,6 +5,7 @@ from dataset import *
 from torchvision.utils import make_grid, save_image
 from models.PGmodel import Generator, Discriminator
 from torchinfo import summary
+from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import detect_anomaly
 def pgmodel_run(opts):
     #各種必要なディレクトリの作成
@@ -64,6 +65,7 @@ def pgmodel_run(opts):
     epochs = opts.num_epochs
     res_step = opts.res_step #10000
     iter_start = 0
+    writer = SummaryWriter(log_dir=learning_log_dir)
     for epoch in range(epochs):
         start_time = time.time()
 
@@ -82,7 +84,7 @@ def pgmodel_run(opts):
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer,
                  'latent_size': latent_size, 'char_num': opts.char_num, 'log_dir':logs_GAN,
                 'device': opts.device, "res_step" : res_step, "iter_start":iter_start,
-                 'Tensor': opts.Tensor, 'LongTensor': opts.LongTensor,'ID': ID}
+                 'Tensor': opts.Tensor, 'LongTensor': opts.LongTensor,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]+1
         D_TF_loss_list.append(check_point["D_epoch_TF_losses"])
@@ -128,6 +130,8 @@ def pgmodel_run(opts):
 
         if iter_start >= res_step*7:
             break
+
+    writer.close()
     return D_TF_loss_list, G_TF_loss_list, D_cl_loss_list, G_cl_loss_list
 
 def main():

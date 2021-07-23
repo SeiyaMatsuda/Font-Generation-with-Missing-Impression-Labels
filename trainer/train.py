@@ -64,10 +64,10 @@ def pggan_train(param):
     kl_loss = KlLoss(activation='softmax').to(device)
     mse_loss = torch.nn.MSELoss()
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['one_embed_label_target']
+        # real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['one_embed_label_target']
+        real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
         #ステップの定義
         res = iter / res_step
-
         # get integer by floor
         #image size define
         eps = 1e-7
@@ -187,7 +187,7 @@ def pggan_train(param):
 
         iter += 1
 
-        if iter % 500 == 0:
+        if iter % 250 == 0:
             test_label = ['decorative', 'big', 'shading', 'manuscript', 'ghost']
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)

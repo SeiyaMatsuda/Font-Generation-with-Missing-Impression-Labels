@@ -180,10 +180,10 @@ def pggan_train(param):
         fake_acc.append(f_acc)
 
         ##tensor bord
-        # writer.add_scalars("TF_loss", {'D_TF_loss': D_TF_loss, 'G_TF_loss': G_TF_loss}, iter)
-        # writer.add_scalars("class_loss", {'D_class_loss': D_class_loss, 'G_class_loss': G_class_loss}, iter)
-        # writer.add_scalars("char_loss", {'D_char_loss': D_char_loss, 'G_char_loss': G_char_loss}, iter)
-        # writer.add_scalars("Acc", {'real_acc': r_acc, 'fake_acc': f_acc}, iter)
+        writer.add_scalars("TF_loss", {'D_TF_loss': D_TF_loss, 'G_TF_loss': G_TF_loss}, iter)
+        writer.add_scalars("class_loss", {'D_class_loss': D_class_loss, 'G_class_loss': G_class_loss}, iter)
+        writer.add_scalars("char_loss", {'D_char_loss': D_char_loss, 'G_char_loss': G_char_loss}, iter)
+        writer.add_scalars("Acc", {'real_acc': r_acc, 'fake_acc': f_acc}, iter)
 
         iter += 1
 

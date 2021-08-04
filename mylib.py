@@ -187,6 +187,7 @@ def Multilabel_OneHot(labels, n_categories, dtype=torch.float32, normalize = Tru
         # indexing starts at 1 and tensor indexing starts at 0
         label = torch.LongTensor(label)-1
         one_hot_labels[i] = one_hot_labels[i].scatter_(dim=0, index=label, value=1.)
+        
     if normalize:
         return torch.mul(one_hot_labels, 1/one_hot_labels.sum(axis = 1).view(-1, 1))
     else:

@@ -95,13 +95,13 @@ class ConvModuleD(nn.Module):
 
 #
 class Generator(nn.Module):
-    def __init__(self, weight, latent_size=512, char_num=26, num_dimension=300, attention=False, device=torch.device("cuda")):
+    def __init__(self, weight, latent_size=256, char_num=26, num_dimension=300, attention=False, device=torch.device("cuda")):
         super().__init__()
 
         # conv modules & toRGBs
         self.attention = attention
         scale = 1
-        inchs = np.array([latent_size + char_num + num_dimension, 256, 128, 64, 32, 16], dtype=np.uint32) * scale
+        inchs = np.array([latent_size * 2, 256, 128, 64, 32, 16], dtype=np.uint32) * scale
         outchs = np.array([256, 128, 64, 32, 16, 8], dtype=np.uint32) * scale
         sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
         firsts = np.array([True, False, False, False, False, False], dtype=np.bool)
@@ -112,6 +112,7 @@ class Generator(nn.Module):
             if attention:
                 attn_blocks.append(Attention(outch, num_dimension, len(sizes) - (idx + 1)))
         self.emb_layer = ImpEmbedding(weight, deepsets=False, device=device)
+        self.CA_layer = Conditioning_Augumentation(num_dimension + char_num, latent_size, device=device)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
         if attention:
@@ -126,13 +127,11 @@ class Generator(nn.Module):
         # to image
         n, c = x.shape
         x = x.reshape(n, c // 16, 4, 4)
-        # char vector
-        y_char = y_char.reshape(y_char.size(0), y_char.size(1), 1, 1)
-        y_char = y_char.expand(y_char.size(0), y_char.size(1), 4, 4)
-        # impression embedding
         if emb:
-            y_imp, mu, logvar = self.emb_layer(y_imp)
-        y_sc = y_imp.reshape(y_imp.size(0), y_imp.size(1), 1, 1)
+            y_imp = self.emb_layer(y_imp)
+        y_sc = torch.cat([y_imp, y_char], dim=1)
+        y_sc, mu, logvar = self.CA_layer(y_sc)
+        y_sc = y_sc.reshape(y_sc.size(0), y_sc.size(1), 1, 1)
         y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1), 4, 4)
         # attribute embedding
         if self.attention:
@@ -140,7 +139,7 @@ class Generator(nn.Module):
             attr_raw = self.attribute_embed(attrid)
             y_emb = y_imp.unsqueeze(2) * attr_raw
         # for the highest resolution
-        x = torch.cat([x, y_char, y_sc], axis=1)
+        x = torch.cat([x, y_sc], axis=1)
         res = min(res, len(self.blocks))
 
         # get integer by floor

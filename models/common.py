@@ -39,11 +39,10 @@ class ImpEmbedding(nn.Module):
         self.shape = (self.weight.shape[0], self.weight.shape[1])
         self.deepsets = deepsets
         if deepsets:
-            self.sets_layer = DeepSets(300, 300)
+            self.sets_layer = DeepSets(num_dimension, num_dimension)
         if not required_grad:
             self.embed.weight.requires_grad = False
         res_block =[]
-        self.CA_layer = Conditioning_Augumentation(300, num_dimension, device=device)
         for i in range(residual_num):
             res_block.append(ResidualBlock(num_dimension))
         self.res_block = nn.Sequential(*res_block)
@@ -54,9 +53,8 @@ class ImpEmbedding(nn.Module):
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)/labels.sum(1)
-        attr, mu, logvar = self.CA_layer(attr)
         attr = self.res_block(attr)
-        return attr, mu, logvar
+        return attr
 class ResidualBlock(nn.Module):
     def __init__(self, in_channel):
         super(ResidualBlock, self).__init__()

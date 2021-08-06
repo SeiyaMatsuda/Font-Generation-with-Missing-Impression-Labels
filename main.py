@@ -30,7 +30,7 @@ def pgmodel_run(opts):
     data = np.array([np.load(d) for d in opts.data])
     # 生成に必要な乱数
     latent_size = opts.latent_size
-    z = torch.randn(2, latent_size * 4 * 4)
+    z = torch.randn(4, latent_size * 4 * 4)
     #単語IDの変換
     ID = {key:idx+1 for idx, key in enumerate(opts.w2v_vocab)}
     weights = np.array(list(opts.w2v_vocab.values()))

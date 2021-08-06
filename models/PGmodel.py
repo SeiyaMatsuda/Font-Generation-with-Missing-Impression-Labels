@@ -1,5 +1,4 @@
 from .common import *
-from pytorch_revgrad import RevGrad
 from torchvision import models
 import numpy as np
 import torch.nn.functional as F
@@ -55,19 +54,16 @@ class ConvModuleD(nn.Module):
             layers = [
                 Minibatch_std(),  # final block only
                 Conv2d(inch + 1, outch, 3, padding=1),
-                nn.Dropout(p=0.5),
                 nn.LeakyReLU(0.2, inplace=True),
                 Conv2d(outch, outch, 4, padding=0),
-                nn.Dropout(p=0.5),
                 nn.LeakyReLU(0.2, inplace=True),
-
             ]
             layer_TF = [nn.Conv2d(outch, 1, 1, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 1, padding=0)]
             # layer_imp = [nn.Conv2d(outch, imp_num, 1, padding=0)]
             layer_imp = [nn.Flatten(),
                          nn.Dropout(p=0.5),
-                         nn.Linear(outch * 4 * 4, imp_num)]
+                         nn.Linear(outch * 4 * 4, imp_num),]
 
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)
@@ -125,9 +121,8 @@ class Generator(nn.Module):
             self.attrid = attrid.view(1, attrid.size(0))
 
         self.size = sizes
-        self.RevGrad = RevGrad()
 
-    def forward(self, x, y_char, y_imp, res, eps=1e-7, RevGrad=False, emb=True):
+    def forward(self, x, y_char, y_imp, res, eps=1e-7, emb=True):
         # to image
         n, c = x.shape
         x = x.reshape(n, c // 16, 4, 4)
@@ -169,8 +164,6 @@ class Generator(nn.Module):
             dst_sml = self.toRGBs[nlayer - 1](x_sml)
             alpha = res - int(res - eps)
             x = (1 - alpha) * dst_sml + alpha * dst_big
-        if RevGrad == True:
-            x = self.RevGrad(x)
         return torch.tanh(x), mu, logvar
 
 

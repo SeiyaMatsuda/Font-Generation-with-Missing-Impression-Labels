@@ -54,9 +54,7 @@ class ImpEmbedding(nn.Module):
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)/labels.sum(1)
-        #attr, mu, logvar = self.CA_layer(attr)
-        mu = None
-        logvar = None
+        attr, mu, logvar = self.CA_layer(attr)
         attr = self.res_block(attr)
         return attr, mu, logvar
 class ResidualBlock(nn.Module):

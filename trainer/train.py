@@ -1,5 +1,5 @@
 import torch.nn.functional as F
-from mylib import compute_gradient_penalty, Multilabel_OneHot, KlLoss, visualizer, FocalLoss
+from mylib import compute_gradient_penalty, Multilabel_OneHot, KlLoss, visualizer, FocalLoss, CALoss
 from options import *
 import numpy as np
 import gc
@@ -63,6 +63,7 @@ def pggan_train(param):
     bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight=pos_weight).to(device)
     kl_loss = KlLoss().to(device)
     mse_loss = torch.nn.MSELoss().to(device)
+    ca_loss = CALoss()
 
     for batch_idx, samples in enumerate(databar):
         real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
@@ -101,9 +102,8 @@ def pggan_train(param):
         # 印象語分類のロス
         G_class_loss = mse_loss(F.sigmoid(D_fake_class), gen_label)
         # CAにおける損失
-        # CA_loss = kl_loss(mu, logvar)
-        G_loss = G_TF_loss + G_char_loss + G_class_loss \
-                 # + CA_loss
+        CA_loss = ca_loss(mu, logvar)
+        G_loss = G_TF_loss + G_char_loss + G_class_loss + 2 * CA_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()

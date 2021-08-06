@@ -353,8 +353,8 @@ class KlLoss(nn.Module):
         return (cross_entropy - entropy) / (input.size(0))
 
 class CALoss(nn.Module):
-    def __init__(self, activation = None):
-        super(KlLoss, self).__init__()
+    def __init__(self):
+        super(CALoss, self).__init__()
     def forward(self, mu, logvar):
         # -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
         KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)

@@ -352,6 +352,15 @@ class KlLoss(nn.Module):
             cross_entropy = -(target * input).sum()
         return (cross_entropy - entropy) / (input.size(0))
 
+class CALoss(nn.Module):
+    def __init__(self, activation = None):
+        super(KlLoss, self).__init__()
+    def forward(self, mu, logvar):
+        # -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
+        KLD_element = mu.pow(2).add_(logvar.exp()).mul_(-1).add_(1).add_(logvar)
+        KLD = torch.mean(KLD_element).mul_(-0.5)
+        return KLD
+
 if __name__ == '__main__':
     loss = FocalLoss()
     input  = torch.tensor([0.2,0.5, 0.7, 0.21, 0.4]).view(1, -1)

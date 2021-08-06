@@ -1,56 +1,64 @@
-import math
 import torch
 import torch.nn as nn
-import numpy as np
-import torch.nn.init as init
-from sklearn.decomposition import PCA
-import torch.nn.utils as utils
-from math import sqrt
-import random
-# from .condbatchnorm import CondBatchNorm2d
-import torch.nn.functional as F
-# from .self_attention import Self_Attn
-from torch.nn.parameter import Parameter
 from models.Deepsets import DeepSets
+from torch.autograd import Variable
+class Conditioning_Augumentation(nn.Module):
+    def __init__(self, input_dim, output_dim, device):
+        super(Conditioning_Augumentation, self).__init__()
+        self.device = device
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.fc = nn.Linear(self.input_dim, self.output_dim * 2, bias=True)
+        self.relu = nn.ReLU()
 
+    def encode(self, text_embedding):
+        x = self.relu(self.fc(text_embedding))
+        mu = x[:, :self.output_dim]
+        logvar = x[:, self.output_dim:]
+        return mu, logvar
+
+    def reparametrize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        if self.device == torch.device("cuda"):
+            eps = torch.cuda.FloatTensor(std.size()).normal_()
+        else:
+            eps = torch.FloatTensor(std.size()).normal_()
+        eps = Variable(eps)
+        return eps.mul(std).add_(mu)
+
+    def forward(self, text_embedding):
+        mu, logvar = self.encode(text_embedding)
+        c_code = self.reparametrize(mu, logvar)
+        return c_code, mu, logvar
 class ImpEmbedding(nn.Module):
-    def __init__(self, weight, sum_weight = True, deepsets = False,  num_dimension = 300, residual_num = 0, required_grad = False):
+    def __init__(self, weight, deepsets=False,  num_dimension=300, residual_num=0, required_grad=False, device=torch.device("cuda")):
         super(ImpEmbedding, self).__init__()
         self.weight = weight
         self.embed = nn.Embedding(self.weight.shape[0], self.weight.shape[1])
         self.embed.weight = nn.Parameter(torch.from_numpy(self.weight))
         self.shape = (self.weight.shape[0], self.weight.shape[1])
-        self.sum_weight = sum_weight
         self.deepsets = deepsets
-        print('deepsets:{}::::sum_weight:{}'.format(self.deepsets, self.sum_weight))
-        if sum_weight:
-            self.fc =nn.Sequential(
-                 nn.Linear(self.weight.shape[0], 1),
-                 nn.LeakyReLU(0.2, inplace=True))
         if deepsets:
-            self.sets_layer = DeepSets(num_dimension, num_dimension)
+            self.sets_layer = DeepSets(300, 300)
         if not required_grad:
             self.embed.weight.requires_grad = False
         res_block =[]
+        self.CA_layer = Conditioning_Augumentation(300, num_dimension, device=device)
         for i in range(residual_num):
             res_block.append(ResidualBlock(num_dimension))
         self.res_block = nn.Sequential(*res_block)
-    def forward(self, labels , w2v = True):
-        if w2v:
-            labels = labels.view(labels.size(0), labels.size(1), 1)
-            attr = torch.mul(self.embed.weight.data, labels)
-        else:
-            attr = labels
-        if self.sum_weight:
-            attr = self.fc(attr.permute(0, 2, 1))
-            attr = attr.permute(0, 2, 1)
-            attr = attr.sum(1)
-        elif self.deepsets:
+    def forward(self, labels):
+        labels = labels.view(labels.size(0), labels.size(1), 1)
+        attr = torch.mul(self.embed.weight.data, labels)
+        if self.deepsets:
             attr = self.sets_layer(attr)
         else:
-            attr = attr.sum(1)
+            attr = attr.sum(1)/labels.sum(1)
+        #attr, mu, logvar = self.CA_layer(attr)
+        mu = None
+        logvar = None
         attr = self.res_block(attr)
-        return attr
+        return attr, mu, logvar
 class ResidualBlock(nn.Module):
     def __init__(self, in_channel):
         super(ResidualBlock, self).__init__()

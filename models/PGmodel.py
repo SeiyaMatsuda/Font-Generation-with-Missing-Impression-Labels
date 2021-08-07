@@ -138,7 +138,7 @@ class Generator(nn.Module):
             attr_raw = self.attribute_embed(attrid)
             y_emb = y_imp.unsqueeze(2) * attr_raw
         # for the highest resolution
-        x = torch.cat([x, y_sc], axis=1)
+        x = torch.cat([x, y_cond], axis=1)
         res = min(res, len(self.blocks))
 
         # get integer by floor

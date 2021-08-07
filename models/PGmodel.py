@@ -60,7 +60,6 @@ class ConvModuleD(nn.Module):
             ]
             layer_TF = [nn.Conv2d(outch, 1, 1, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 1, padding=0)]
-            # layer_imp = [nn.Conv2d(outch, imp_num, 1, padding=0)]
             layer_imp = [nn.Flatten(),
                          nn.Dropout(p=0.5),
                          nn.Linear(outch * 4 * 4, imp_num),]

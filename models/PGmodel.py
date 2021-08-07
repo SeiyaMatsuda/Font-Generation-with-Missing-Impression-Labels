@@ -101,7 +101,7 @@ class Generator(nn.Module):
         # conv modules & toRGBs
         self.attention = attention
         scale = 1
-        inchs = np.array([latent_size * 2, 256, 128, 64, 32, 16], dtype=np.uint32) * scale
+        inchs = np.array([latent_size + char_num + num_dimension, 256, 128, 64, 32, 16], dtype=np.uint32) * scale
         outchs = np.array([256, 128, 64, 32, 16, 8], dtype=np.uint32) * scale
         sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
         firsts = np.array([True, False, False, False, False, False], dtype=np.bool)
@@ -128,11 +128,10 @@ class Generator(nn.Module):
         n, c = x.shape
         x = x.reshape(n, c // 16, 4, 4)
         if emb:
-            y_imp = self.emb_layer(y_imp)
-        y_sc = torch.cat([y_imp, y_char], dim=1)
-        y_sc, mu, logvar = self.CA_layer(y_sc)
-        y_sc = y_sc.reshape(y_sc.size(0), y_sc.size(1), 1, 1)
-        y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1), 4, 4)
+            y_sc = self.emb_layer(y_imp)
+        y_cond = torch.cat([y_sc, y_char], dim=1)
+        y_cond = y_cond.reshape(y_cond.size(0), y_cond.size(1), 1, 1)
+        y_cond = y_cond.expand(y_cond.size(0), y_cond.size(1), 4, 4)
         # attribute embedding
         if self.attention:
             attrid = self.attrid.repeat(x.size(0), 1).to(y_imp.device)
@@ -163,6 +162,8 @@ class Generator(nn.Module):
             dst_sml = self.toRGBs[nlayer - 1](x_sml)
             alpha = res - int(res - eps)
             x = (1 - alpha) * dst_sml + alpha * dst_big
+
+        mu, logvar = None, None
         return torch.tanh(x), mu, logvar
 
 

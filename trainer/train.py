@@ -102,8 +102,7 @@ def pggan_train(param):
         # 印象語分類のロス
         G_class_loss = mse_loss(F.sigmoid(D_fake_class), gen_label)
         # CAにおける損失
-        CA_loss = ca_loss(mu, logvar)
-        G_loss = G_TF_loss + G_char_loss + G_class_loss + 2 * CA_loss
+        G_loss = G_TF_loss + G_char_loss + G_class_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()

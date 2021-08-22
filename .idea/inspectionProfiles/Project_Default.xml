@@ -4,7 +4,7 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <value>
-          <list size="110">
+          <list size="112">
             <item index="0" class="java.lang.String" itemvalue="traitlets" />
             <item index="1" class="java.lang.String" itemvalue="absl-py" />
             <item index="2" class="java.lang.String" itemvalue="protobuf" />
@@ -115,6 +115,8 @@
             <item index="107" class="java.lang.String" itemvalue="s3transfer" />
             <item index="108" class="java.lang.String" itemvalue="jupyterlab-code-formatter" />
             <item index="109" class="java.lang.String" itemvalue="tensorboardX" />
+            <item index="110" class="java.lang.String" itemvalue="mkl-random" />
+            <item index="111" class="java.lang.String" itemvalue="mkl-service" />
           </list>
         </value>
       </option>

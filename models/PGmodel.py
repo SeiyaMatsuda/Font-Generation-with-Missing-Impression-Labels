@@ -14,10 +14,10 @@ class ConvModuleG(nn.Module):
 
         if first:
             layers = [
-                Conv2d(inch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
-                Conv2d(outch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
+                        Conv2d(inch, outch, 3, padding=1),
+                        nn.LeakyReLU(0.2, inplace=False),
+                        Conv2d(outch, outch, 3, padding=1),
+                        nn.LeakyReLU(0.2, inplace=False),
 
             ]
 

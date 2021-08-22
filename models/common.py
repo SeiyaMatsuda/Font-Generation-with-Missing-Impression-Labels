@@ -286,60 +286,6 @@ class OptimizedResidualBlock(nn.Module):
         output = self.conv2(output)
         return shortcut + output
 
-
-class CondResidualBlock(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 num_classes,
-                 resample=None,
-                 spectral_norm=False):
-        super(CondResidualBlock, self).__init__()
-        if in_channels != out_channels or resample is not None:
-            self.learnable_shortcut = True
-        else:
-            self.learnable_shortcut = False
-
-        self.relu1 = nn.ReLU()
-        self.relu2 = nn.ReLU()
-        if resample == 'up':
-            self.norm1 = CondBatchNorm2d(in_channels, num_classes)
-            self.norm2 = CondBatchNorm2d(out_channels, num_classes)
-            self.conv_shortcut = UpSampleConv(in_channels,
-                                              out_channels,
-                                              kernel_size=1,
-                                              spectral_norm=spectral_norm,
-                                              residual_init=False)
-            self.conv1 = UpSampleConv(in_channels,
-                                      out_channels,
-                                      kernel_size=kernel_size,
-                                      spectral_norm=spectral_norm)
-            self.conv2 = CustomConv2d(out_channels,
-                                      out_channels,
-                                      kernel_size=kernel_size,
-                                      spectral_norm=spectral_norm)
-        else:
-            raise NotImplementedError()
-
-    def forward(self, input, label=None, class_weight=None):
-        if label is None and class_weight is None:
-            raise ValueError('either label or class_weight must not be None')
-
-        if self.learnable_shortcut:
-            shortcut = self.conv_shortcut(input)
-        else:
-            shortcut = input
-
-        output = input
-        output = self.norm1(output, label=label, class_weight=class_weight)
-        output = self.relu1(output)
-        output = self.conv1(output)
-        output = self.norm2(output, label=label, class_weight=class_weight)
-        output = self.relu2(output)
-        output = self.conv2(output)
-        return shortcut + output
-
 class ImpEmbedding(nn.Module):
     def __init__(self, weight, sum_weight = True, deepsets = False,  num_dimension = 300, residual_num = 0, required_grad = False):
         super(ImpEmbedding, self).__init__()
@@ -367,8 +313,8 @@ class ImpEmbedding(nn.Module):
             labels = labels.view(labels.size(0), labels.size(1), 1)
             attr = torch.mul(self.embed.weight.data, labels)
             # attr = list(map(lambda x:x[x.sum(2)!=0], attr.split(1)))
-            # attr = torch.cat(list(map(lambda x:x[torch.tensor(random.choices(range(len(x)), k=64))], attr)), dim=0)
-            # attr = attr.view(-1, 64, 300)
+            # attr = torch.cat(list(map(lambda x:x[torch.tensor(random.choices(range(len(x)), k=1574))], attr)), dim=0)
+            # attr = attr.view(-1, 1574, 300)/ 1574
         else:
             attr = labels
         if self.sum_weight:
@@ -397,25 +343,6 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         return x + self.conv_block(x)
-class Down(nn.Module):
-    def __init__(self, in_channel, out_channel, normalize=True, attention=False,
-                 lrelu = False, dropout=0.0, bias=False, kernel_size=4, stride=2, padding=1):
-        super(Down, self).__init__()
-        layers = [nn.Conv2d(in_channel, out_channel, kernel_size=kernel_size,
-                  stride=stride, padding=padding, bias=bias)]
-        if attention:
-            layers.append(Self_Attn(out_channel))
-        if normalize:
-            layers.append(nn.BatchNorm2d(out_channel))
-        if lrelu:
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
-        if dropout:
-            layers.append(nn.Dropout(dropout))
-
-        self.model = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.model(x)
 class CALayer2d(nn.Module):
     def __init__(self, channel, reduction=4):
         super(CALayer2d, self).__init__()

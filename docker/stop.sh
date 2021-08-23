@@ -1,0 +1,2 @@
+#!/bin
+docker stop ProbabilityDistributionViewer

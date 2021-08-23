@@ -30,16 +30,16 @@ def pgmodel_run(opts):
     data = np.array([np.load(d) for d in opts.data])
     # 生成に必要な乱数
     latent_size = opts.latent_size
-    z = torch.randn(2, latent_size * 4 * 4)
+    z = torch.randn(4, latent_size * 4 * 4)
     #単語IDの変換
     ID = {key:idx+1 for idx, key in enumerate(opts.w2v_vocab)}
     weights = np.array(list(opts.w2v_vocab.values()))
     device = opts.device
 
     #モデルを定義
-    D_model = Discriminator(imp_num=weights.shape[0], char_num=opts.char_num).to(device)
-    G_model = Generator(weights, latent_size=latent_size, char_num=opts.char_num).to(device)
-    G_model_mavg = Generator(weights, latent_size=latent_size, char_num=opts.char_num).to(device)
+    D_model = Discriminator(imp_num=weights.shape[0], char_num=opts.char_num, device=device).to(device)
+    G_model = Generator(weights, latent_size=latent_size, char_num=opts.char_num, device=device).to(device)
+    G_model_mavg = Generator(weights, latent_size=latent_size, char_num=opts.char_num, device=device).to(device)
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
@@ -68,8 +68,7 @@ def pgmodel_run(opts):
     writer = SummaryWriter(log_dir=learning_log_dir)
     for epoch in range(epochs):
         start_time = time.time()
-
-        dataset = Myfont_dataset3(data, opts.impression_word_list, ID, char_num=opts.char_num,
+        dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
                                   transform=transform)
         bs = opts.batch_size
         label_weight = 1/dataset.weight

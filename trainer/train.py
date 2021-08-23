@@ -129,7 +129,7 @@ def pggan_train(param):
             gen_label = F.softmax(D_real_class.detach(), dim=1).to(device)
             D_real_loss = - torch.mean(D_real_TF)
             # y_imp = G_model.module.impression_embedding(labels_oh).to(device)
-            fake_img, _ = G_model(z, char_class, gen_label, res)
+            fake_img, _ = G_model(z, char_class_oh, gen_label, res)
             D_fake = D_model(fake_img.detach(), res)[0]
             D_fake_loss = torch.mean(D_fake)
             gp_loss = gradient_penalty(D_model, real_img.data, fake_img.data, res, real_img.shape[0])

@@ -1,6 +1,4 @@
 from .common import *
-from pytorch_revgrad import RevGrad
-
 class ConvModuleG(nn.Module):
     '''
     Args:

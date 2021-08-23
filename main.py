@@ -37,9 +37,9 @@ def pgmodel_run(opts):
     device = opts.device
 
     #モデルを定義
-    D_model = Discriminator(imp_num=weights.shape[0], char_num=opts.char_num, device=device).to(device)
-    G_model = Generator(weights, latent_size=latent_size, char_num=opts.char_num, device=device).to(device)
-    G_model_mavg = Generator(weights, latent_size=latent_size, char_num=opts.char_num, device=device).to(device)
+    D_model = Discriminator(imp_num=weights.shape[0], char_num=opts.char_num).to(device)
+    G_model = Generator(weights, latent_size=latent_size, char_num=opts.char_num).to(device)
+    G_model_mavg = Generator(weights, latent_size=latent_size, char_num=opts.char_num).to(device)
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
@@ -68,7 +68,8 @@ def pgmodel_run(opts):
     writer = SummaryWriter(log_dir=learning_log_dir)
     for epoch in range(epochs):
         start_time = time.time()
-        dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
+
+        dataset = Myfont_dataset3(data, opts.impression_word_list, ID, char_num=opts.char_num,
                                   transform=transform)
         bs = opts.batch_size
         label_weight = 1/dataset.weight

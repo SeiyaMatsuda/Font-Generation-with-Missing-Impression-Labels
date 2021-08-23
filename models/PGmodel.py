@@ -1,5 +1,4 @@
 from .common import *
-from pytorch_revgrad import RevGrad
 from torchvision import models
 
 class ConvModuleG(nn.Module):
@@ -118,9 +117,7 @@ class Generator(nn.Module):
             self.attrid = attrid.view(1, attrid.size(0))
 
         self.size = sizes
-        self.RevGrad = RevGrad()
-
-    def forward(self, x, y_char, y_imp, res, eps=1e-7, RevGrad = False, emb=True):
+    def forward(self, x, y_char, y_imp, res, eps=1e-7, emb=True):
         # to image
         n, c = x.shape
         x = x.reshape(n, c//16, 4, 4)
@@ -162,9 +159,6 @@ class Generator(nn.Module):
             dst_sml = self.toRGBs[nlayer-1](x_sml)
             alpha = res - int(res-eps)
             x = (1-alpha)*dst_sml + alpha*dst_big
-
-        if RevGrad == True:
-            x = self.RevGrad(x)
         return torch.tanh(x), y_imp
     def impression_embedding(self, y_imp):
         y_imp = self.emb_layer(y_imp)

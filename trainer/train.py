@@ -1,10 +1,5 @@
 import torch.nn.functional as F
-from mylib import compute_gradient_penalty, Multilabel_OneHot, KlLoss, visualizer, FocalLoss
-from options import *
-import numpy as np
-import gc
-import tqdm
-import torch.autograd as autograd
+from mylib import *
 from dataset import *
 def gradient_penalty(netD, real, fake, res, batch_size, gamma=1):
     device = real.device
@@ -19,21 +14,16 @@ def gradient_penalty(netD, real, fake, res, batch_size, gamma=1):
 
 def pggan_train(param):
     # paramの変数
+    opts = param["opts"]
     G_model = param["G_model"]
     D_model = param["D_model"]
-    dataset = param["dataset"]
     DataLoader = param["DataLoader"]
     label_weight = param['label_weight']
     pos_weight = param['pos_weight']
-    device = param['device']
     ID = param['ID']
-    char_num = param['char_num']
     test_z = param["z"]
     G_optimizer = param["G_optimizer"]
     D_optimizer = param["D_optimizer"]
-    res_step = param['res_step']
-    Tensor = param["Tensor"]
-    latent_size = param['latent_size']
     iter_start = param["iter_start"]
     log_dir = param['log_dir']
     G_model_mavg = param["G_model_mavg"]
@@ -42,7 +32,7 @@ def pggan_train(param):
     G_model.train()
     D_model.train()
     iter = iter_start
-    if iter == res_step * 6.5:
+    if iter == opts.res_step * 6.5:
         G_optimizer.param_groups[0]['lr'] = 0.0001
         D_optimizer.param_groups[0]['lr'] = 0.0001
     #lossの初期化
@@ -57,17 +47,17 @@ def pggan_train(param):
     #Dataloaderの定義
     databar = tqdm.tqdm(DataLoader)
     #バッチごとの計算
-    criterion_pixel = torch.nn.L1Loss().to(device)
-    f_loss = FocalLoss().to(device)
+    criterion_pixel = torch.nn.L1Loss().to(opts.device)
+    f_loss = FocalLoss().to(opts.device)
     #マルチクラス分類
-    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight=pos_weight).to(device)
-    kl_loss = KlLoss(activation='softmax').to(device)
-    mse_loss = torch.nn.MSELoss()
+    bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight=pos_weight).to(opts.device)
+    kl_loss = KlLoss(activation='softmax').to(opts.device)
+    ca_loss = CALoss()
     for batch_idx, samples in enumerate(databar):
         # real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['one_embed_label_target']
         real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
         #ステップの定義
-        res = iter / res_step
+        res = iter / opts.res_step
         # get integer by floor
         #image size define
         eps = 1e-7
@@ -80,20 +70,22 @@ def pggan_train(param):
         batch_len = real_img.size(0)
         #デバイスの移
         real_img,  char_class = \
-            real_img.to(device), char_class.to(device)
+            real_img.to(opts.device), char_class.to(opts.device)
         # 文字クラスのone-hotベクトル化
-        char_class_oh = torch.eye(char_num)[char_class].to(device)
+        char_class_oh = torch.eye(opts.char_num)[char_class].to(opts.device)
         # 印象語のベクトル化
         # labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True).to(device)
-        labels_oh = torch.eye(len(ID))[labels-1].to(device)
+        labels_oh = torch.eye(len(ID))[labels-1].to(opts.device)
         # training Generator
         #画像の生成に必要なノイズ作成
-        z = torch.randn(batch_len, latent_size * 16)
+        z_img = torch.randn(batch_len, opts.latent_size * 16)
+        z_cond = torch.randn(batch_len, opts.num_dimension)
+        z = (z_img, z_cond)
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
         gen_label = F.softmax(D_real_class.detach(), dim=1)
         # ２つのノイズの結合
-        fake_img, _ = G_model(z, char_class_oh, gen_label, res)
+        fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res)
         #l1損失の計算
         # L1_loss = (criterion_pixel(fake_img1, real_img) + criterion_pixel(fake_img2, real_img))/2
@@ -104,10 +96,10 @@ def pggan_train(param):
         # 印象語分類のロス
         G_class_loss = kl_loss(D_fake_class, gen_label)
         # G_class_loss = (mse_loss(D_fake_class1, gen_label) + mse_loss(D_fake_class2, gen_label))/2
-
+        G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 
-        G_loss = G_TF_loss + G_char_loss + G_class_loss
+        G_loss = G_TF_loss + G_char_loss + G_class_loss + G_kl_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()
@@ -126,10 +118,10 @@ def pggan_train(param):
         for _ in range(1):
             D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
-            gen_label = F.softmax(D_real_class.detach(), dim=1).to(device)
+            gen_label = F.softmax(D_real_class.detach(), dim=1).to(opts.device)
             D_real_loss = - torch.mean(D_real_TF)
             # y_imp = G_model.module.impression_embedding(labels_oh).to(device)
-            fake_img, _ = G_model(z, char_class_oh, gen_label, res)
+            fake_img, _, _ = G_model(z, char_class_oh, gen_label, res)
             D_fake = D_model(fake_img.detach(), res)[0]
             D_fake_loss = torch.mean(D_fake)
             gp_loss = gradient_penalty(D_model, real_img.data, fake_img.data, res, real_img.shape[0])
@@ -173,10 +165,10 @@ def pggan_train(param):
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)
             save_path = os.path.join(log_dir, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
-            visualizer(save_path, G_model_mavg, test_z, char_num, label, res, device)
+            visualizer(save_path, G_model_mavg, test_z, opts.char_num, label, res, opts.device)
             G_model_mavg.train()
 
-        if iter >= res_step * 7:
+        if iter >= opts.res_step * 7:
             break
 
     D_running_TF_loss /= len(DataLoader)

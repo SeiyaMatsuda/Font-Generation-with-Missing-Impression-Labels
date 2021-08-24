@@ -89,13 +89,13 @@ class ConvModuleD(nn.Module):
         return x_TF, x_char, x_imp
 #
 class Generator(nn.Module):
-    def __init__(self, weight, latent_size=512, char_num=26, attention=False):
+    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=False):
         super().__init__()
 
         # conv modules & toRGBs
         self.attention = attention
         scale = 1
-        inchs  = np.array([latent_size + char_num + weight.shape[1], 256, 128,64,32,16], dtype=np.uint32)*scale
+        inchs  = np.array([latent_size + char_num + num_dimension, 256, 128, 64, 32, 16], dtype=np.uint32)*scale
         outchs = np.array([256, 128, 64, 32, 16, 8], dtype=np.uint32)*scale
         sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
         firsts = np.array([True, False, False, False, False, False],  dtype=np.bool)
@@ -104,8 +104,9 @@ class Generator(nn.Module):
             blocks.append(ConvModuleG(s, inch, outch, first))
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
-                attn_blocks.append(Attention(outch, weight.shape[1], len(sizes) - (idx+1)))
+                attn_blocks.append(Attention(outch, num_dimension, len(sizes) - (idx+1)))
         self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
+        self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
         if attention:
@@ -115,9 +116,14 @@ class Generator(nn.Module):
             self.attrid = attrid.view(1, attrid.size(0))
 
         self.size = sizes
+    def impression_embedding(self, y_imp):
+        y_imp = self.emb_layer(y_imp)
+        return y_imp
 
-    def forward(self, x, y_char, y_imp, res, eps=1e-7,  emb=True):
+    def forward(self, z, y_char, y_imp, res, eps=1e-7,  emb=True):
         # to image
+        x = z[0]
+        z_cond = z[1]
         n, c = x.shape
         x = x.reshape(n, c//16, 4, 4)
         # char vector
@@ -126,8 +132,9 @@ class Generator(nn.Module):
         # impression embedding
         if emb:
             y_imp = self.emb_layer(y_imp)
-        y_sc = y_imp.reshape(y_imp.size(0), y_imp.size(1), 1, 1)
-        y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1),4,4)
+        y_sc, mu, logvar = self.CA_layer(y_imp, z_cond)
+        y_sc = y_sc.reshape(y_sc.size(0), y_sc.size(1), 1, 1)
+        y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1), 4, 4)
         # attribute embedding
         if self.attention:
             attrid = self.attrid.repeat(x.size(0), 1).to(y_imp.device)
@@ -158,10 +165,8 @@ class Generator(nn.Module):
             dst_sml = self.toRGBs[nlayer-1](x_sml)
             alpha = res - int(res-eps)
             x = (1-alpha)*dst_sml + alpha*dst_big
-        return torch.tanh(x), y_imp
-    def impression_embedding(self, y_imp):
-        y_imp = self.emb_layer(y_imp)
-        return y_imp
+        return torch.tanh(x), mu, logvar
+
 class Discriminator(nn.Module):
     def __init__(self, imp_num = 1574, char_num = 26):
         super().__init__()

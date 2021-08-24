@@ -3,41 +3,11 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.init as init
-from sklearn.decomposition import PCA
 import torch.nn.utils as utils
-from math import sqrt
-import random
-# from .condbatchnorm import CondBatchNorm2d
 import torch.nn.functional as F
-# from .self_attention import Self_Attn
+from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from models.Deepsets import DeepSets
-def weights_init(m):
-    if isinstance(m, CustomConv2d):
-        if m.conv.weight is not None:
-            if m.residual_init:
-                init.xavier_uniform_(m.conv.weight.data, gain=math.sqrt(2))
-            else:
-                init.xavier_uniform_(m.conv.weight.data)
-        if m.conv.bias is not None:
-            init.constant_(m.conv.bias.data, 0.0)
-    if isinstance(m, CustomLinear):
-        if m.linear.weight is not None:
-            init.xavier_uniform_(m.linear.weight.data)
-        if m.linear.bias is not None:
-            init.constant_(m.linear.bias.data, 0.0)
-    if isinstance(m, CustomEmbedding):
-        if m.embed.weight is not None:
-            init.xavier_uniform_(m.embed.weight.data)
-
-
-def global_pooling(input, pooling='mean'):
-    if pooling == 'mean':
-        return input.mean(3).mean(2)
-    elif pooling == 'sum':
-        return input.sum_weight(3).sum_weight(2)
-    else:
-        raise NotImplementedError()
 
 
 class CustomConv2d(nn.Module):
@@ -66,18 +36,6 @@ class CustomConv2d(nn.Module):
 
     def forward(self, input):
         return self.conv(input)
-
-
-class CustomEmbedding(nn.Module):
-    def __init__(self, num_embeddings, embedding_dim, spectral_norm=False):
-        super(CustomEmbedding, self).__init__()
-        self.embed = nn.Embedding(num_embeddings, embedding_dim)
-        if spectral_norm:
-            self.embed = utils.spectral_norm(self.embed)
-
-    def forward(self, input):
-        return self.embed(input)
-
 
 class CustomLinear(nn.Module):
     def __init__(self,
@@ -115,82 +73,6 @@ class ConvMeanPool(nn.Module):
         output = self.conv(output)
         output = (output[:, :, ::2, ::2] + output[:, :, 1::2, ::2] +
                   output[:, :, ::2, 1::2] + output[:, :, 1::2, 1::2]) / 4
-        return output
-
-
-class MeanPoolConv(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 bias=True,
-                 spectral_norm=False,
-                 residual_init=True):
-        super(MeanPoolConv, self).__init__()
-        self.conv = CustomConv2d(in_channels,
-                                 out_channels,
-                                 kernel_size,
-                                 bias=bias,
-                                 spectral_norm=spectral_norm,
-                                 residual_init=residual_init)
-
-    def forward(self, input):
-        output = input
-        output = (output[:, :, ::2, ::2] + output[:, :, 1::2, ::2] +
-                  output[:, :, ::2, 1::2] + output[:, :, 1::2, 1::2]) / 4
-        output = self.conv(output)
-        return output
-
-
-class DepthToSpace(nn.Module):
-    def __init__(self, block_size):
-        super(DepthToSpace, self).__init__()
-        self.block_size = block_size
-        self.block_size_square = block_size * block_size
-
-    def forward(self, input):
-        output = input.permute(0, 2, 3, 1)
-        (batch_size, in_height, in_width, in_depth) = output.size()
-        out_depth = int(in_depth / self.block_size_square)
-        out_width = int(in_width * self.block_size)
-        out_height = int(in_height * self.block_size)
-        output = output.contiguous().view(batch_size, in_height, in_width,
-                                          self.block_size_square, out_depth)
-        output_list = output.split(self.block_size, 3)
-        output_list = [
-            output_element.contiguous().view(batch_size, in_height, out_width,
-                                             out_depth)
-            for output_element in output_list
-        ]
-        output = torch.stack(output_list, 0).transpose(0, 1).permute(
-            0, 2, 1, 3, 4).contiguous().view(batch_size, out_height, out_width,
-                                             out_depth)
-        output = output.permute(0, 3, 1, 2)
-        return output
-
-
-class UpSampleConv(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 bias=True,
-                 spectral_norm=False,
-                 residual_init=True):
-        super(UpSampleConv, self).__init__()
-        self.conv = CustomConv2d(in_channels,
-                                 out_channels,
-                                 kernel_size,
-                                 bias=bias,
-                                 spectral_norm=spectral_norm,
-                                 residual_init=residual_init)
-        self.depth_to_space = DepthToSpace(2)
-
-    def forward(self, input):
-        output = input
-        output = torch.cat((output, output, output, output), 1)
-        output = self.depth_to_space(output)
-        output = self.conv(output)
         return output
 
 
@@ -254,29 +136,6 @@ class ResidualBlock(nn.Module):
         output = self.conv2(output)
         return shortcut + output
 
-
-class OptimizedResidualBlock(nn.Module):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 spectral_norm=False):
-        super(OptimizedResidualBlock, self).__init__()
-        self.conv1 = CustomConv2d(in_channels,
-                                  out_channels,
-                                  kernel_size=kernel_size,
-                                  spectral_norm=spectral_norm)
-        self.conv2 = ConvMeanPool(out_channels,
-                                  out_channels,
-                                  kernel_size=kernel_size,
-                                  spectral_norm=spectral_norm)
-        self.conv_shortcut = MeanPoolConv(in_channels,
-                                          out_channels,
-                                          kernel_size=1,
-                                          spectral_norm=spectral_norm,
-                                          residual_init=False)
-        self.relu2 = nn.ReLU()
-
     def forward(self, input):
         shortcut = self.conv_shortcut(input)
 
@@ -327,6 +186,30 @@ class ImpEmbedding(nn.Module):
             attr = attr.sum(1)
         attr = self.res_block(attr)
         return attr
+class Conditioning_Augumentation(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(Conditioning_Augumentation, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.fc = nn.Linear(self.input_dim, self.output_dim * 2, bias=True)
+        self.relu = nn.ReLU()
+
+    def encode(self, text_embedding):
+        x = self.relu(self.fc(text_embedding))
+        mu = x[:, :self.output_dim]
+        logvar = x[:, self.output_dim:]
+        return mu, logvar
+
+    def reparametrize(self, mu, logvar, eps):
+        std = logvar.mul(0.5).exp_()
+        eps = Variable(eps)
+        return eps.mul(std) + mu
+
+    def forward(self, text_embedding, eps):
+        mu, logvar = self.encode(text_embedding)
+        c_code = self.reparametrize(mu, logvar, eps)
+        return c_code, mu, logvar
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channel):
         super(ResidualBlock, self).__init__()
@@ -343,6 +226,7 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         return x + self.conv_block(x)
+
 class CALayer2d(nn.Module):
     def __init__(self, channel, reduction=4):
         super(CALayer2d, self).__init__()
@@ -428,30 +312,6 @@ class Attention(nn.Module):
         out = self.img_attr(out)
         return out
 
-class EqualizedLR_Conv2d(nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size, stride=1, padding=0):
-        super().__init__()
-        self.padding = padding
-        self.stride = stride
-        self.scale = np.sqrt(2 / (in_ch * kernel_size[0] * kernel_size[1]))
-
-        self.weight = Parameter(torch.Tensor(out_ch, in_ch, *kernel_size))
-        self.bias = Parameter(torch.Tensor(out_ch))
-
-        nn.init.normal_(self.weight)
-        nn.init.zeros_(self.bias)
-
-    def forward(self, x):
-        return F.conv2d(x, self.weight * self.scale, self.bias, self.stride, self.padding)
-
-
-class Pixel_norm(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, a):
-        b = a / torch.sqrt(torch.sum(a ** 2, dim=1, keepdim=True) + 10e-8)
-        return b
 ##PGmodel_module
 class PixelNorm(nn.Module):
     def __init__(self):

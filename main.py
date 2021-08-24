@@ -29,17 +29,18 @@ def pgmodel_run(opts):
         os.makedirs(learning_log_dir)
     data = np.array([np.load(d) for d in opts.data])
     # 生成に必要な乱数
-    latent_size = opts.latent_size
-    z = torch.randn(4, latent_size * 4 * 4)
+    z_img = torch.randn(4, opts.latent_size * 4 * 4)
+    z_cond = torch.randn(4, opts.num_dimension)
+    z = (z_img, z_cond)
     #単語IDの変換
     ID = {key:idx+1 for idx, key in enumerate(opts.w2v_vocab)}
     weights = np.array(list(opts.w2v_vocab.values()))
-    device = opts.device
-
+    imp_num = weights.shape[0]
+    w2v_dimension = weights.shape[1]
     #モデルを定義
-    D_model = Discriminator(imp_num=weights.shape[0], char_num=opts.char_num).to(device)
-    G_model = Generator(weights, latent_size=latent_size, char_num=opts.char_num).to(device)
-    G_model_mavg = Generator(weights, latent_size=latent_size, char_num=opts.char_num).to(device)
+    D_model = Discriminator(imp_num=imp_num, char_num=opts.char_num).to(opts.device)
+    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num).to(opts.device)
+    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num).to(opts.device)
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
@@ -62,11 +63,9 @@ def pgmodel_run(opts):
 
     transform = Transform()
     #training param
-    epochs = opts.num_epochs
-    res_step = opts.res_step #10000
     iter_start = 0
     writer = SummaryWriter(log_dir=learning_log_dir)
-    for epoch in range(epochs):
+    for epoch in range(opts.num_epochs):
         start_time = time.time()
 
         dataset = Myfont_dataset3(data, opts.impression_word_list, ID, char_num=opts.char_num,
@@ -78,13 +77,10 @@ def pgmodel_run(opts):
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
 
-        param = {'mode': opts.mode, 'emb':opts.emb, 'D_num_critic' : opts.D_num_critic, 'G_num_critic' : opts.G_num_critic, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
+        param = {"opts":opts, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
                  'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight, 'pos_weight':pos_weight,
-                 'DataLoader': DataLoader, 'latent_size':latent_size,
-                 'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer,
-                 'latent_size': latent_size, 'char_num': opts.char_num, 'log_dir':logs_GAN,
-                'device': opts.device, "res_step" : res_step, "iter_start":iter_start,
-                 'Tensor': opts.Tensor, 'LongTensor': opts.LongTensor,'ID': ID, 'writer': writer}
+                 'DataLoader': DataLoader,
+                 'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir':logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]+1
         D_TF_loss_list.append(check_point["D_epoch_TF_losses"])
@@ -128,7 +124,7 @@ def pgmodel_run(opts):
         if (epoch + 1) % 5 == 0:
             torch.save(check_point, os.path.join(check_point_dir, 'check_point_epoch_%d.pth' % (epoch)))
 
-        if iter_start >= res_step*7:
+        if iter_start >= opts.res_step*7:
             break
 
     writer.close()

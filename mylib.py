@@ -309,7 +309,7 @@ def split_list(l, n):
 
 def visualizer(path, G_model, z, char_num, label, res, device):
     G_model.eval()
-    z_shape = z.shape
+    z_shape = z[0].shape
     label_shape = label.shape
     char = torch.eye(char_num).repeat(z_shape[0] * label_shape[0], 1).to(device)
     z = tile(z, 0, char_num).repeat(label_shape[0], 1).to(device)

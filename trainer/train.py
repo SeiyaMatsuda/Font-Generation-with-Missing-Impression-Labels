@@ -1,11 +1,11 @@
 import torch.nn.functional as F
 from mylib import *
 from dataset import *
-def gradient_penalty(netD, real, fake, res, batch_size, gamma=1):
+def gradient_penalty(netD, real, fake, cond, res, batch_size, gamma=1):
     device = real.device
     alpha = torch.rand(batch_size, 1, 1, 1, requires_grad=True).to(device)
     x = alpha*real + (1-alpha)*fake
-    d_= netD.forward(x, res)[0]
+    d_= netD.forward(x, res, cond=cond)[0]
     g = torch.autograd.grad(outputs=d_, inputs=x,
                             grad_outputs=torch.ones(d_.shape).to(device),
                             create_graph=True, retain_graph=True,only_inputs=True)[0]
@@ -14,9 +14,11 @@ def gradient_penalty(netD, real, fake, res, batch_size, gamma=1):
 
 def pggan_train(param):
     # paramの変数
+    epoch = param['epoch']
     opts = param["opts"]
     G_model = param["G_model"]
     D_model = param["D_model"]
+    fid = param['fid']
     DataLoader = param["DataLoader"]
     label_weight = param['label_weight']
     pos_weight = param['pos_weight']
@@ -44,6 +46,7 @@ def pggan_train(param):
     D_running_char_loss = 0
     real_acc = []
     fake_acc = []
+    fid_score = []
     #Dataloaderの定義
     databar = tqdm.tqdm(DataLoader)
     #バッチごとの計算
@@ -86,7 +89,7 @@ def pggan_train(param):
         gen_label = F.softmax(D_real_class.detach(), dim=1)
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
-        D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res)
+        D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
         #l1損失の計算
         # L1_loss = (criterion_pixel(fake_img1, real_img) + criterion_pixel(fake_img2, real_img))/2
         # Wasserstein lossの計算
@@ -116,15 +119,13 @@ def pggan_train(param):
         #training Discriminator
         #Discriminatorに本物画像を入れて順伝播⇒Loss計算
         for _ in range(1):
-            D_real_TF,  D_real_char, D_real_class = D_model(real_img, res)
             # 生成用のラベル
-            gen_label = F.softmax(D_real_class.detach(), dim=1).to(opts.device)
+            fake_img, mu, _ = G_model(z, char_class_oh, gen_label, res)
+            D_real_TF, D_real_char, D_real_class = D_model(real_img, res, cond=mu)
             D_real_loss = - torch.mean(D_real_TF)
-            # y_imp = G_model.module.impression_embedding(labels_oh).to(device)
-            fake_img, _, _ = G_model(z, char_class_oh, gen_label, res)
-            D_fake = D_model(fake_img.detach(), res)[0]
+            D_fake = D_model(fake_img.detach(), res, cond=mu)[0]
             D_fake_loss = torch.mean(D_fake)
-            gp_loss = gradient_penalty(D_model, real_img.data, fake_img.data, res, real_img.shape[0])
+            gp_loss = gradient_penalty(D_model, real_img.data, fake_img.data, mu, res, real_img.shape[0])
             loss_drift = (D_real_TF ** 2).mean()
 
             #Wasserstein lossの計算
@@ -133,7 +134,6 @@ def pggan_train(param):
             D_char_loss = kl_loss(D_real_char, char_class_oh)
             # 印象語分類のロス
             D_class_loss = kl_loss(D_real_class, labels_oh)
-            # D_class_loss = mse_loss(D_real_class, y_imp)
             D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
             D_optimizer.zero_grad()
             D_loss.backward()
@@ -141,7 +141,6 @@ def pggan_train(param):
             D_running_TF_loss += D_TF_loss.item()
             D_running_cl_loss += D_class_loss.item()
             D_running_char_loss += D_char_loss.item()
-
         ##caliculate accuracy
         real_pred = 1 * (torch.sigmoid(D_real_TF) > 0.5).detach().cpu()
         fake_pred = 1 * (torch.sigmoid(D_fake) > 0.5).detach().cpu()
@@ -151,6 +150,8 @@ def pggan_train(param):
         f_acc = (fake_pred == fake_TF).float().sum().item()/len(fake_pred)
         real_acc.append(r_acc)
         fake_acc.append(f_acc)
+
+
 
         ##tensor bord
         writer.add_scalars("TF_loss", {'D_TF_loss': D_TF_loss, 'G_TF_loss': G_TF_loss}, iter)
@@ -164,13 +165,15 @@ def pggan_train(param):
             test_label = ['decorative', 'big', 'shading', 'manuscript', 'ghost']
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)
-            save_path = os.path.join(log_dir, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
+            save_path = os.path.join(opts.logs_GAN, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
             visualizer(save_path, G_model_mavg, test_z, opts.char_num, label, res, opts.device)
             G_model_mavg.train()
 
         if iter >= opts.res_step * 7:
             break
-
+    fid_disttance = fid.calculate_fretchet(real_img.data.cpu().repeat(1, 3, 1, 1),
+                                           fake_img.data.cpu().repeat(1, 3, 1, 1),  cuda=opts.device, batch_size=opts.batch_size//4)
+    writer.add_scalar("fid", fid_disttance, epoch)
     D_running_TF_loss /= len(DataLoader)
     G_running_TF_loss /= len(DataLoader)
     D_running_cl_loss /= len(DataLoader)

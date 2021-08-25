@@ -7,9 +7,12 @@ from models.PGmodel import Generator, Discriminator
 from torchinfo import summary
 from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import detect_anomaly
-def pgmodel_run(opts):
-    #各種必要なディレクトリの作成
-    log_dir = os.path.join(opts.root, opts.dt_now)
+from metrics.FID import FID
+import shutil
+import traceback
+
+def make_logdir(path):
+    log_dir = path
     check_point_dir = os.path.join(log_dir, 'check_points')
     output_dir = os.path.join(log_dir, 'output')
     weight_dir = os.path.join(log_dir, 'weight')
@@ -27,6 +30,9 @@ def pgmodel_run(opts):
         os.makedirs(logs_GAN)
     if not os.path.exists(learning_log_dir):
         os.makedirs(learning_log_dir)
+    return log_dir, check_point_dir, output_dir, weight_dir, logs_GAN, learning_log_dir
+
+def pgmodel_run(opts):
     data = np.array([np.load(d) for d in opts.data])
     # 生成に必要な乱数
     z_img = torch.randn(4, opts.latent_size * 16)
@@ -38,9 +44,12 @@ def pgmodel_run(opts):
     imp_num = weights.shape[0]
     w2v_dimension = weights.shape[1]
     #モデルを定義
-    D_model = Discriminator(imp_num=imp_num, char_num=opts.char_num).to(opts.device)
+    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num).to(opts.device)
     G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num).to(opts.device)
     G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num).to(opts.device)
+    fid = FID()
+    print("Generator:", G_model)
+    print("Discriminator:", D_model)
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
@@ -64,7 +73,7 @@ def pgmodel_run(opts):
     transform = Transform()
     #training param
     iter_start = 0
-    writer = SummaryWriter(log_dir=learning_log_dir)
+    writer = SummaryWriter(log_dir=opts.learning_log_dir)
     for epoch in range(opts.num_epochs):
         start_time = time.time()
 
@@ -78,9 +87,9 @@ def pgmodel_run(opts):
                                                  collate_fn=collate_fn, drop_last=True)
 
         param = {"opts":opts, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
-                 'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight, 'pos_weight':pos_weight,
+                 'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight, 'pos_weight':pos_weight, "fid": fid,
                  'DataLoader': DataLoader,
-                 'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir':logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
+                 'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir':opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]+1
         D_TF_loss_list.append(check_point["D_epoch_TF_losses"])
@@ -118,11 +127,11 @@ def pgmodel_run(opts):
         print(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
         print(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
         if (epoch + 1) % 1 == 0:
-            learning_curve(history, os.path.join(learning_log_dir, 'loss_epoch_{}'.format(epoch + 1)))
-            learning_curve(accuracy, os.path.join(learning_log_dir, 'acc_epoch_{}'.format(epoch + 1)))
+            learning_curve(history, os.path.join(opts.learning_log_dir, 'loss_epoch_{}'.format(epoch + 1)))
+            learning_curve(accuracy, os.path.join(opts.learning_log_dir, 'acc_epoch_{}'.format(epoch + 1)))
         # モデル保存のためのcheckpointファイルを作成
         if (epoch + 1) % 5 == 0:
-            torch.save(check_point, os.path.join(check_point_dir, 'check_point_epoch_%d.pth' % (epoch)))
+            torch.save(check_point, os.path.join(opts.check_point_dir, 'check_point_epoch_%d.pth' % (epoch)))
 
         if iter_start >= opts.res_step*7:
             break
@@ -140,8 +149,14 @@ def main():
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
+    #make dirs
+    opts.log_dir, opts.check_point_dir, opts.output_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
+        make_logdir(os.path.join(opts.root, opts.dt_now))
     #回すモデルの選定
-    pgmodel_run(opts)
-
+    try:
+        pgmodel_run(opts)
+    except:
+        shutil.rmtree(opts.log_dir)
+        print(traceback.format_exc())
 if __name__=="__main__":
     main()

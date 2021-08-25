@@ -325,12 +325,10 @@ class Minibatch_std(nn.Module):
         super().__init__()
 
     def forward(self, x):
-        # std = torch.std(x, dim=0, keepdim=True, unbiased=False)
-        # mean = torch.mean(std, dim=(1,2,3), keepdim=True)
         mean = (x.var(dim=0) + 1e-8).sqrt().mean().view(1, 1, 1, 1)
-        n,c,h,w = x.shape
-        mean = torch.ones(n,1,h,w, dtype=x.dtype, device=x.device)*mean
-        return torch.cat((x,mean), dim=1)
+        n, c, h, w = x.shape
+        mean = torch.ones(n, 1, h, w, dtype=x.dtype, device=x.device)*mean
+        return torch.cat((x, mean), dim=1)
 class WeightScale(nn.Module):
     def __init__(self):
         super().__init__()

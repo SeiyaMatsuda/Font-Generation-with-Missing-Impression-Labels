@@ -41,7 +41,7 @@ class ConvModuleD(nn.Module):
         outch: (int), Ex.: 128
     '''
 
-    def __init__(self, out_size, inch, outch, char_num = 26, imp_num = 1574, final=False):
+    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False):
         super().__init__()
         self.final = final
         if final:
@@ -49,17 +49,11 @@ class ConvModuleD(nn.Module):
                 Minibatch_std(),  # final block only
                 Conv2d(inch + 1, outch, 3, padding=1),
                 nn.LeakyReLU(0.2, inplace=True),
-
-
-
-
-
-                Conv2d(outch, outch, 4, padding=0),
+                Conv2d(outch + num_dimension, outch, 3, padding=1),
                 nn.LeakyReLU(0.2, inplace=True),
             ]
-            layer_TF = [nn.Conv2d(outch, 1, 1, padding=0)]
-            layer_char = [nn.Conv2d(outch, char_num, 1, padding=0)]
-            # layer_imp = [nn.Conv2d(outch, imp_num, 1, padding=0)]
+            layer_TF = [nn.Conv2d(outch, 1, 4, padding=0)]
+            layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
             layer_imp = [nn.Flatten(),
                 nn.Linear(outch * 4 * 4, 2 * imp_num),
                 nn.Dropout(p=0.5),
@@ -80,19 +74,27 @@ class ConvModuleD(nn.Module):
 
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, x):
-        x_ = self.layers(x)
+    def forward(self, x, cond=None):
         if self.final:
-            x_TF = torch.squeeze(self.layer_TF(x_))
-            x_char = torch.squeeze(self.layer_char(x_))
-            x_imp = self.layers[:-2](x)
-            x_imp = torch.squeeze(self.layer_imp(x_imp))
+            if cond==None:
+                x = self.layers[:-2](x)
+                x_TF, x_char = None, None
+                x_imp = torch.squeeze(self.layer_imp(x))
+            else:
+                x_ = self.layers[:-2](x)
+                x_imp = torch.squeeze(self.layer_imp(x_))
+                cond_ = cond.view(cond.size(0), cond.size(1), 1, 1).repeat(1, 1, x_.size(2),  x_.size(3))
+                x_ = torch.cat((x_, cond_), axis=1)
+                x_ = self.layers[-2:](x_)
+                x_TF = torch.squeeze(self.layer_TF(x_))
+                x_char = torch.squeeze(self.layer_char(x_))
         else:
+            x_ = self.layers(x)
             x_TF = x_
             x_char = None
             x_imp = None
         return x_TF, x_char, x_imp
-#
+
 class Generator(nn.Module):
     def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=False):
         super().__init__()
@@ -175,7 +177,7 @@ class Generator(nn.Module):
         return torch.tanh(x), mu, logvar
 
 class Discriminator(nn.Module):
-    def __init__(self, imp_num = 1574, char_num = 26):
+    def __init__(self, num_dimension=300, imp_num=1574, char_num=26):
         super().__init__()
 
         self.minbatch_std = Minibatch_std()
@@ -189,12 +191,12 @@ class Discriminator(nn.Module):
         blocks, fromRGBs = [], []
         for s, inch, outch, final in zip(sizes, inchs, outchs, finals):
             fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))
-            blocks.append(ConvModuleD(s, inch, outch, imp_num=imp_num, char_num=char_num, final=final))
+            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final))
 
         self.fromRGBs = nn.ModuleList(fromRGBs)
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, x, res):
+    def forward(self, x, res, cond=None):
         # for the highest resolution
         res = min(res, len(self.blocks))
 
@@ -204,7 +206,7 @@ class Discriminator(nn.Module):
 
         # high resolution
         x_big = self.fromRGBs[n](x)
-        x_big, char, imp = self.blocks[n](x_big)
+        x_big, char, imp = self.blocks[n](x_big, cond)
 
         if n==0:
             x = x_big
@@ -216,6 +218,6 @@ class Discriminator(nn.Module):
             x = (1-alpha)*x_sml + alpha*x_big
 
         for i in range(n):
-            x, char, imp = self.blocks[n-1-i](x)
+            x, char, imp = self.blocks[n-1-i](x, cond)
         return x, char, imp
 #

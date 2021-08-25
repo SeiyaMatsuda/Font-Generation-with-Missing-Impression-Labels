@@ -7,8 +7,6 @@ from mylib import pickle_load
 def get_parser():
     parser = argparse.ArgumentParser()
     # Dataset option
-    parser.add_argument('--mode', type=str, choices=["C", "AC", "CP", 'Imp2Font', "PG"],default='PG')
-    parser.add_argument('--emb', type=str, choices=["w2v", "one-hot"], default='w2v')
     parser.add_argument('--img_size', type=int, default=64)
     parser.add_argument('--w2v_dimension', type=int, default=300)
     parser.add_argument('--num_dimension', type=int, default=100)
@@ -20,10 +18,8 @@ def get_parser():
     parser.add_argument('--device_count', type=int, default=torch.cuda.device_count())
     parser.add_argument('--g_lr', type=float, default=0.001)
     parser.add_argument('--d_lr', type=float, default=0.001)
-    parser.add_argument('--c_lr', type=float, default=0.0005)
-    parser.add_argument('--D_num_critic', type=int, default=1)
-    parser.add_argument('--G_num_critic', type=int, default=1)
-    parser.add_argument('--lambda_gp', type=int, default=5)
+    parser.add_argument('--num_critic', type=int, default=1)
+    parser.add_argument('--lambda_gp', type=int, default=10)
     parser.add_argument('--num_iterations', type=int, default=100000)
     parser.add_argument('--num_iterations_decay', type=int, default=100000)
     parser.add_argument('--dt_now', type =str ,default=str(datetime.datetime.now()))

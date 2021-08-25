@@ -102,10 +102,10 @@ class Generator(nn.Module):
         # conv modules & toRGBs
         self.attention = attention
         scale = 1
-        inchs  = np.array([latent_size + char_num + num_dimension, 256, 128, 64, 32, 16], dtype=np.uint32)*scale
-        outchs = np.array([256, 128, 64, 32, 16, 8], dtype=np.uint32)*scale
-        sizes = np.array([4, 8, 16, 32, 64, 128], dtype=np.uint32)
-        firsts = np.array([True, False, False, False, False, False],  dtype=np.bool)
+        inchs  = np.array([latent_size + char_num + num_dimension, 256, 128, 64, 32], dtype=np.uint32)*scale
+        outchs = np.array([256, 128, 64, 32, 16], dtype=np.uint32)*scale
+        sizes = np.array([4, 8, 16, 32, 64], dtype=np.uint32)
+        firsts = np.array([True, False, False, False, False],  dtype=np.bool)
         blocks, toRGBs, attn_blocks = [], [], []
         for idx, (s, inch, outch, first) in enumerate(zip(sizes, inchs, outchs, firsts)):
             blocks.append(ConvModuleG(s, inch, outch, first))
@@ -184,10 +184,10 @@ class Discriminator(nn.Module):
 
         # conv modules & toRGBs
         scale = 1
-        inchs = np.array([256,128, 64,32,16, 8], dtype=np.uint32)*scale
-        outchs  = np.array([512,256,128,64,32,16], dtype=np.uint32)*scale
-        sizes = np.array([1,4,8,16,32,64], dtype=np.uint32)
-        finals = np.array([True, False, False, False, False, False], dtype=np.bool)
+        inchs = np.array([256, 128, 64, 32, 16], dtype=np.uint32)*scale
+        outchs  = np.array([512, 256, 128, 64, 32], dtype=np.uint32)*scale
+        sizes = np.array([1, 4, 8, 16, 32], dtype=np.uint32)
+        finals = np.array([True, False, False, False, False], dtype=np.bool)
         blocks, fromRGBs = [], []
         for s, inch, outch, final in zip(sizes, inchs, outchs, finals):
             fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))

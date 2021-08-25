@@ -34,7 +34,7 @@ def pggan_train(param):
     G_model.train()
     D_model.train()
     iter = iter_start
-    if iter == opts.res_step * 6.5:
+    if iter == opts.res_step * 5.5:
         G_optimizer.param_groups[0]['lr'] = 0.0001
         D_optimizer.param_groups[0]['lr'] = 0.0001
     #lossの初期化
@@ -49,9 +49,6 @@ def pggan_train(param):
     fid_score = []
     #Dataloaderの定義
     databar = tqdm.tqdm(DataLoader)
-    #バッチごとの計算
-    criterion_pixel = torch.nn.L1Loss().to(opts.device)
-    f_loss = FocalLoss().to(opts.device)
     #マルチクラス分類
     bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight=pos_weight).to(opts.device)
     kl_loss = KlLoss(activation='softmax').to(opts.device)
@@ -90,15 +87,12 @@ def pggan_train(param):
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
-        #l1損失の計算
-        # L1_loss = (criterion_pixel(fake_img1, real_img) + criterion_pixel(fake_img2, real_img))/2
         # Wasserstein lossの計算
         G_TF_loss = -torch.mean(D_fake_TF)
         # 文字クラス分類のロス
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         # 印象語分類のロス
         G_class_loss = kl_loss(D_fake_class, gen_label)
-        # G_class_loss = (mse_loss(D_fake_class1, gen_label) + mse_loss(D_fake_class2, gen_label))/2
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 
@@ -118,7 +112,7 @@ def pggan_train(param):
 
         #training Discriminator
         #Discriminatorに本物画像を入れて順伝播⇒Loss計算
-        for _ in range(1):
+        for _ in range(opts.num_critic):
             # 生成用のラベル
             fake_img, mu, _ = G_model(z, char_class_oh, gen_label, res)
             D_real_TF, D_real_char, D_real_class = D_model(real_img, res, cond=mu)
@@ -129,12 +123,12 @@ def pggan_train(param):
             loss_drift = (D_real_TF ** 2).mean()
 
             #Wasserstein lossの計算
-            D_TF_loss = D_fake_loss + D_real_loss + 10 * gp_loss
+            D_TF_loss = D_fake_loss + D_real_loss + opts.lambda_gp * gp_loss
             # 文字クラス分類のロス
             D_char_loss = kl_loss(D_real_char, char_class_oh)
             # 印象語分類のロス
             D_class_loss = kl_loss(D_real_class, labels_oh)
-            D_loss = D_TF_loss + D_char_loss + loss_drift * 0.001 + D_class_loss
+            D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001
             D_optimizer.zero_grad()
             D_loss.backward()
             D_optimizer.step()
@@ -194,7 +188,7 @@ def pggan_train(param):
                    'G_epoch_ch_losses': G_running_char_loss,
                    'epoch_real_acc': real_acc,
                   'epoch_fake_acc':fake_acc,
-                   "iter_finish":iter,
-                   "res":res
+                   "iter_finish": iter,
+                   "res": res
                    }
     return check_point

@@ -160,7 +160,7 @@ def pggan_train(param):
 
         iter += 1
 
-        if iter % 250 == 0:
+        if iter % 100 == 0:
             test_label = ['decorative', 'big', 'shading', 'manuscript', 'ghost']
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)

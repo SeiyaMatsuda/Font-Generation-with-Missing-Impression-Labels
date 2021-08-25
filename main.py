@@ -29,7 +29,7 @@ def pgmodel_run(opts):
         os.makedirs(learning_log_dir)
     data = np.array([np.load(d) for d in opts.data])
     # 生成に必要な乱数
-    z_img = torch.randn(4, opts.latent_size * 4 * 4)
+    z_img = torch.randn(4, opts.latent_size * 16)
     z_cond = torch.randn(4, opts.num_dimension)
     z = (z_img, z_cond)
     #単語IDの変換

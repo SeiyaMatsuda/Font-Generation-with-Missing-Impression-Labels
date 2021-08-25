@@ -49,6 +49,11 @@ class ConvModuleD(nn.Module):
                 Minibatch_std(),  # final block only
                 Conv2d(inch + 1, outch, 3, padding=1),
                 nn.LeakyReLU(0.2, inplace=True),
+
+
+
+
+
                 Conv2d(outch, outch, 4, padding=0),
                 nn.LeakyReLU(0.2, inplace=True),
             ]
@@ -116,9 +121,11 @@ class Generator(nn.Module):
             self.attrid = attrid.view(1, attrid.size(0))
 
         self.size = sizes
-    def impression_embedding(self, y_imp):
+    def impression_embedding(self, z, y_imp):
+        z_cond = z[1]
         y_imp = self.emb_layer(y_imp)
-        return y_imp
+        y_sc, mu, logvar = self.CA_layer(y_imp, z_cond)
+        return y_imp, mu
 
     def forward(self, z, y_char, y_imp, res, eps=1e-7,  emb=True):
         # to image

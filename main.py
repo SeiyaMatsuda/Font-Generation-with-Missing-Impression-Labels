@@ -153,10 +153,8 @@ def main():
     opts.log_dir, opts.check_point_dir, opts.output_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))
     #回すモデルの選定
-    try:
-        pgmodel_run(opts)
-    except:
-        shutil.rmtree(opts.log_dir)
-        print(traceback.format_exc())
+    pgmodel_run(opts)
+        # shutil.rmtree(opts.log_dir)
+        # print(traceback.format_exc())
 if __name__=="__main__":
     main()

@@ -163,7 +163,7 @@ def pggan_train(param):
             visualizer(save_path, G_model_mavg, test_z, opts.char_num, label, res, opts.device)
             G_model_mavg.train()
 
-        if iter >= opts.res_step * 7:
+        if iter==100000:
             break
     fid_disttance = fid.calculate_fretchet(real_img.data.cpu().repeat(1, 3, 1, 1),
                                            fake_img.data.cpu().repeat(1, 3, 1, 1),  cuda=opts.device, batch_size=opts.batch_size//4)

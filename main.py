@@ -133,7 +133,7 @@ def pgmodel_run(opts):
         if (epoch + 1) % 5 == 0:
             torch.save(check_point, os.path.join(opts.check_point_dir, 'check_point_epoch_%d.pth' % (epoch)))
 
-        if iter_start >= opts.res_step*7:
+        if iter_start >= 100000:
             break
 
     writer.close()

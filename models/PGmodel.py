@@ -41,7 +41,7 @@ class ConvModuleD(nn.Module):
         outch: (int), Ex.: 128
     '''
 
-    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False):
+    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, dropout=False):
         super().__init__()
         self.final = final
         if final:
@@ -52,6 +52,8 @@ class ConvModuleD(nn.Module):
                 Conv2d(outch + num_dimension, outch, 3, padding=1),
                 nn.LeakyReLU(0.2, inplace=True),
             ]
+            if dropout==True:
+                layers.insert(4, nn.Dropout2d(0.5))
             layer_TF = [nn.Conv2d(outch, 1, 4, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
             layer_imp = [nn.Flatten(),
@@ -71,21 +73,23 @@ class ConvModuleD(nn.Module):
                 nn.LeakyReLU(0.2, inplace=False),
                 nn.AdaptiveAvgPool2d((out_size, out_size)),
             ]
+            if dropout==True:
+                layers.insert(3, nn.Dropout2d(0.5))
 
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x, cond=None):
         if self.final:
             if cond==None:
-                x = self.layers[:-2](x)
+                x = self.layers[:3](x)
                 x_TF, x_char = None, None
                 x_imp = torch.squeeze(self.layer_imp(x))
             else:
-                x_ = self.layers[:-2](x)
+                x_ = self.layers[:3](x)
                 x_imp = torch.squeeze(self.layer_imp(x_))
                 cond_ = cond.view(cond.size(0), cond.size(1), 1, 1).repeat(1, 1, x_.size(2),  x_.size(3))
                 x_ = torch.cat((x_, cond_), axis=1)
-                x_ = self.layers[-2:](x_)
+                x_ = self.layers[3:](x_)
                 x_TF = torch.squeeze(self.layer_TF(x_))
                 x_char = torch.squeeze(self.layer_char(x_))
         else:
@@ -188,10 +192,11 @@ class Discriminator(nn.Module):
         outchs  = np.array([512, 256, 128, 64, 32], dtype=np.uint32)*scale
         sizes = np.array([1, 4, 8, 16, 32], dtype=np.uint32)
         finals = np.array([True, False, False, False, False], dtype=np.bool)
+        dropouts = np.array([True, True, True, False, False], dtype=np.bool)
         blocks, fromRGBs = [], []
-        for s, inch, outch, final in zip(sizes, inchs, outchs, finals):
+        for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
             fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))
-            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final))
+            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout))
 
         self.fromRGBs = nn.ModuleList(fromRGBs)
         self.blocks = nn.ModuleList(blocks)

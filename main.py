@@ -14,7 +14,6 @@ import traceback
 def make_logdir(path):
     log_dir = path
     check_point_dir = os.path.join(log_dir, 'check_points')
-    output_dir = os.path.join(log_dir, 'output')
     weight_dir = os.path.join(log_dir, 'weight')
     logs_GAN = os.path.join(log_dir, "learning_image")
     learning_log_dir = os.path.join(log_dir, "learning_log")
@@ -22,15 +21,13 @@ def make_logdir(path):
         os.makedirs(check_point_dir)
     if not os.path.exists(check_point_dir):
         os.makedirs(check_point_dir)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
     if not os.path.exists(logs_GAN):
         os.makedirs(logs_GAN)
     if not os.path.exists(learning_log_dir):
         os.makedirs(learning_log_dir)
-    return log_dir, check_point_dir, output_dir, weight_dir, logs_GAN, learning_log_dir
+    return log_dir, check_point_dir,  weight_dir, logs_GAN, learning_log_dir
 
 def pgmodel_run(opts):
     data = np.array([np.load(d) for d in opts.data])
@@ -74,24 +71,23 @@ def pgmodel_run(opts):
     #training param
     iter_start = 0
     writer = SummaryWriter(log_dir=opts.learning_log_dir)
-    dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
-                              transform=transform)
-    bs = opts.batch_size
-    label_weight = 1 / dataset.weight
-    pos_weight = (dataset.weight.sum() - dataset.weight) / dataset.weight
-
-    DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                             collate_fn=collate_fn, drop_last=True)
 
     for epoch in range(opts.num_epochs):
         start_time = time.time()
+        dataset = Myfont_dataset3(data, opts.impression_word_list, ID, char_num=opts.char_num,
+                                  transform=transform)
+        bs = opts.batch_size
+        label_weight = 1 / dataset.weight
+        pos_weight = (dataset.weight.sum() - dataset.weight) / dataset.weight
 
+        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+                                                 collate_fn=collate_fn, drop_last=True)
         param = {"opts":opts, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
                  'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight, 'pos_weight':pos_weight, "fid": fid,
                  'DataLoader': DataLoader,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir':opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
-        iter_start = check_point["iter_finish"]+1
+        iter_start = check_point["iter_finish"]
         D_TF_loss_list.append(check_point["D_epoch_TF_losses"])
         G_TF_loss_list.append(check_point["G_epoch_TF_losses"])
         D_cl_loss_list.append(check_point["D_epoch_cl_losses"])
@@ -109,8 +105,8 @@ def pgmodel_run(opts):
          'G_char_loss': G_ch_loss_list
                    }
 
-        accuracy = {'real_acc':real_acc_list,
-                    'fake_acc':fake_acc_list}
+        accuracy = {'real_acc': real_acc_list,
+                    'fake_acc': fake_acc_list}
 
         secs = int(time.time() - start_time)
         mins = secs / 60
@@ -126,10 +122,7 @@ def pgmodel_run(opts):
         print(f'\tLoss: {check_point["G_epoch_ch_losses"]:.4f}(Generator_char)')
         print(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
         print(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
-        if (epoch + 1) % 1 == 0:
-            learning_curve(history, os.path.join(opts.learning_log_dir, 'loss_epoch_{}'.format(epoch + 1)))
-            learning_curve(accuracy, os.path.join(opts.learning_log_dir, 'acc_epoch_{}'.format(epoch + 1)))
-        # モデル保存のためのcheckpointファイルを作成
+       # モデル保存のためのcheckpointファイルを作成
         if (epoch + 1) % 5 == 0:
             torch.save(check_point, os.path.join(opts.check_point_dir, 'check_point_epoch_%d.pth' % (epoch)))
 
@@ -150,7 +143,7 @@ def main():
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     #make dirs
-    opts.log_dir, opts.check_point_dir, opts.output_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
+    opts.log_dir, opts.check_point_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))
     #回すモデルの選定
     pgmodel_run(opts)

@@ -35,8 +35,8 @@ def pggan_train(param):
     D_model.train()
     iter = iter_start
     if iter == opts.res_step * 5.5:
-        G_optimizer.param_groups[0]['lr'] = 0.0001
-        D_optimizer.param_groups[0]['lr'] = 0.0001
+        G_optimizer.param_groups[0]['lr'] = opts.g_lr/5
+        D_optimizer.param_groups[0]['lr'] = opts.d_lr/5
     #lossの初期化
     D_running_TF_loss = 0
     G_running_TF_loss = 0
@@ -53,6 +53,7 @@ def pggan_train(param):
     bce_loss = torch.nn.BCEWithLogitsLoss(weight=label_weight, pos_weight=pos_weight).to(opts.device)
     kl_loss = KlLoss(activation='softmax').to(opts.device)
     ca_loss = CALoss()
+    mse_loss = torch.nn.MSELoss()
     for batch_idx, samples in enumerate(databar):
         real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
         # real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
@@ -94,7 +95,7 @@ def pggan_train(param):
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         # 印象語分類のロス
         # G_class_loss = kl_loss(D_fake_class, gen_label)
-        G_class_loss = bce_loss(D_fake_class, gen_label)
+        G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label)
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 

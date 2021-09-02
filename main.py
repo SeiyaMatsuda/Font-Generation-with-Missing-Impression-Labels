@@ -81,7 +81,7 @@ def pgmodel_run(opts):
     pos_weight = (dataset.weight.sum() - dataset.weight) / dataset.weight
 
     DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                             collate_fn=collate_fn, drop_last=False)
+                                             collate_fn=collate_fn, drop_last=True)
 
     for epoch in range(opts.num_epochs):
         start_time = time.time()

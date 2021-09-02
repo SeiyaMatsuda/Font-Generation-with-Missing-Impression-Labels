@@ -74,17 +74,17 @@ def pgmodel_run(opts):
     #training param
     iter_start = 0
     writer = SummaryWriter(log_dir=opts.learning_log_dir)
+    dataset = Myfont_dataset2(data, opts.impression_word_list, ID, char_num=opts.char_num,
+                              transform=transform)
+    bs = opts.batch_size
+    label_weight = 1 / dataset.weight
+    pos_weight = (dataset.weight.sum() - dataset.weight) / dataset.weight
+
+    DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+                                             collate_fn=collate_fn, drop_last=False)
+
     for epoch in range(opts.num_epochs):
         start_time = time.time()
-
-        dataset = Myfont_dataset3(data, opts.impression_word_list, ID, char_num=opts.char_num,
-                                  transform=transform)
-        bs = opts.batch_size
-        label_weight = 1/dataset.weight
-        pos_weight = (dataset.weight.sum() - dataset.weight)/dataset.weight
-
-        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                                 collate_fn=collate_fn, drop_last=True)
 
         param = {"opts":opts, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
                  'G_model_mavg':G_model_mavg, "dataset":dataset, "z":z, "label_weight":label_weight, 'pos_weight':pos_weight, "fid": fid,

@@ -146,7 +146,7 @@ class ResidualBlock(nn.Module):
         return shortcut + output
 
 class ImpEmbedding(nn.Module):
-    def __init__(self, weight, sum_weight = True, deepsets = False,  num_dimension = 300, residual_num = 0, required_grad = False):
+    def __init__(self, weight, sum_weight=False, deepsets=False,  num_dimension=300, residual_num=0, required_grad = False):
         super(ImpEmbedding, self).__init__()
         self.weight = weight
         self.embed = nn.Embedding(self.weight.shape[0], self.weight.shape[1])
@@ -184,6 +184,7 @@ class ImpEmbedding(nn.Module):
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)
+            attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1))
         attr = self.res_block(attr)
         return attr
 class Conditioning_Augumentation(nn.Module):

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
 from models.Deepsets import DeepSets
-
+from models.DeformConv2d import DeformConv2d
 
 class CustomConv2d(nn.Module):
     def __init__(self,
@@ -211,6 +211,7 @@ class Conditioning_Augumentation(nn.Module):
         c_code = self.reparametrize(mu, logvar, eps)
         return c_code, mu, logvar
 
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channel):
         super(ResidualBlock, self).__init__()
@@ -313,6 +314,33 @@ class Attention(nn.Module):
         out = self.img_attr(out)
         return out
 
+class DCAN(nn.Module):
+    def __init__(self, in_channel, num_dimension, img_size):
+        super().__init__()
+
+        self.attn_conv = nn.Sequential(
+           DeformConv2d(in_channel + num_dimension, 1, 3, 1, 1),
+            nn.Sigmoid()
+        )
+        self.constraints_embed = nn.Embedding(num_dimension, img_size)
+        cdim_id = torch.tensor([i for i in range(num_dimension)])
+        self.cdim_id = cdim_id.view(1, num_dimension)
+
+        self.mask_ = None
+
+    def forward(self, x, cond):
+        cdim_id = self.cdim_id.repeat(x.size(0), 1).to(x.device)
+        cdim_raw = self.constraints_embed(cdim_id)
+        cond_embed = cond.unsqueeze(2) * cdim_raw
+        cond_feature = cond_embed.unsqueeze(-1)
+        cond_featureT = torch.transpose(cond_feature, 2, 3)
+        cond_feature2d = torch.matmul(cond_feature, cond_featureT)
+        attn = self.attn_conv(torch.cat([x, cond_feature2d], axis=1))  # [B, 1, H, W]
+        self.mask_ = attn.detach().cpu()
+
+        x = x * attn
+        return x, self.mask_
+
 ##PGmodel_module
 class PixelNorm(nn.Module):
     def __init__(self):
@@ -341,6 +369,7 @@ class Conv2d(nn.Module):
         super().__init__()
         self.layers = nn.Sequential(
             WeightScale(),
+            # nn.ZeroPad2d(padding),
             nn.ReflectionPad2d(padding),
             nn.Conv2d(inch, outch, kernel_size, padding=0),
             PixelNorm(),

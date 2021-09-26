@@ -18,12 +18,10 @@ import matplotlib.pyplot as plt
 import torchvision.models as models
 import matplotlib.animation as animation
 from IPython.display import HTML
-
+import cv2
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
-
 from PIL import Image
-
 import matplotlib.pyplot as plt
 import sys
 import numpy as np
@@ -250,5 +248,34 @@ class FID(nn.Module):
         fid_value = self.calculate_frechet_distance(mu_1, std_1, mu_2, std_2)
         return fid_value
 
-
+def pseudo_hamming(v1, v2):
+    start_time=time.time()
+    v1 = v1.reshape(-1,64,64)
+    v2 = v2.reshape(-1,64,64)
+    bin_img1 = np.where(v1 > 127, 255, 0).astype(np.uint8)
+    bin_img2 = np.where(v2 > 127, 255, 0).astype(np.uint8)
+    mask_img1 = np.where(bin_img1 > 127, 0, 1).astype(np.uint8)
+    mask_img2 = np.where(bin_img2 > 127, 0, 1).astype(np.uint8)
+    dist_img1 = np.array([cv2.distanceTransform(b1, cv2.DIST_L2, 3) for b1 in bin_img1])
+    dist_img2 = np.array([cv2.distanceTransform(b2, cv2.DIST_L2, 3) for b2 in bin_img2])
+    masked_dist_img1 = np.multiply(dist_img1, mask_img2)
+    masked_dist_img2 = np.multiply(dist_img2, mask_img1)
+    merged_masked_dist_img = masked_dist_img1 + masked_dist_img2
+    total = np.sum(merged_masked_dist_img)
+    end_time =time.time()
+    return total
+def mean_average_precision(y_pred, y_true):
+    average_precisions = []
+    # クラス単位でAPを計算
+    y_true = y_true.T
+    y_pred = y_pred.T
+    for i in range(len(y_true)):
+        sort_idx = torch.argsort(y_pred[i], descending=True)
+        y_true_sorted = y_true[i][sort_idx]
+        cumsum = torch.cumsum(y_true_sorted, dim = 0)
+        precision = cumsum / torch.arange(1, 1 + y_true[i].shape[0])
+        # 代表点
+        mask = (y_true_sorted==1)
+        average_precisions.append(precision[mask].mean())
+    return sum(average_precisions)/len(y_true)
 

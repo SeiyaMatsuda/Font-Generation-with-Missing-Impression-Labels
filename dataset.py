@@ -1,18 +1,13 @@
 import torch
 import numpy as np
-from mylib import return_index
+from utils.mylib import return_index
 from options import get_parser
-import os
-import itertools
-import word2vec
 import torchvision.transforms as transforms
-import glob
-from sklearn.preprocessing import LabelEncoder
 import random
 import tqdm
 from collections import Counter
-import torchvision
-from PIL import Image
+
+
 def collate_fn(batch):
     elem = batch[0]
     elem_type = type(elem)
@@ -136,6 +131,7 @@ class Myfont_dataset2(torch.utils.data.Dataset):
                 continue
         self.weight = dict(Counter(sum(label, [])))
         self.weight = torch.tensor([self.weight[key] if key in self.weight.keys() else 0 for key in self.ID.keys()]).float()
+        self.pos_weight = (len(label) - self.weight) / self.weight
         self.data_num = len(self.target_dataset)
 
     def __len__(self):

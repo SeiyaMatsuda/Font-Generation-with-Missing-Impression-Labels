@@ -7,7 +7,7 @@ import torch
 import cv2
 from options import get_parser
 import word2vec
-from mylib import split_list, label_preprocess, pickle_dump
+from utils.mylib import split_list, label_preprocess, pickle_dump
 def font_triming(img, img_size=64):
     size=(img_size, img_size)
     try:

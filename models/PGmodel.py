@@ -12,9 +12,9 @@ class ConvModuleG(nn.Module):
         if first:
             layers = [
                         Conv2d(inch, outch, 3, padding=1),
-                        nn.LeakyReLU(0.2, inplace=False),
+                        nn.LeakyReLU(0.2, inplace=True),
                         Conv2d(outch, outch, 3, padding=1),
-                        nn.LeakyReLU(0.2, inplace=False),
+                        nn.LeakyReLU(0.2, inplace=True),
 
             ]
 
@@ -22,9 +22,9 @@ class ConvModuleG(nn.Module):
             layers = [
                 nn.Upsample((out_size, out_size), mode='nearest'),
                 Conv2d(inch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
+                nn.LeakyReLU(0.2, inplace=True),
                 Conv2d(outch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
+                nn.LeakyReLU(0.2, inplace=True),
             ]
 
         self.layers = nn.Sequential(*layers)
@@ -68,9 +68,9 @@ class ConvModuleD(nn.Module):
         else:
             layers = [
                 Conv2d(inch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
+                nn.LeakyReLU(0.2, inplace=True),
                 Conv2d(outch, outch, 3, padding=1),
-                nn.LeakyReLU(0.2, inplace=False),
+                nn.LeakyReLU(0.2, inplace=True),
                 nn.AdaptiveAvgPool2d((out_size, out_size)),
             ]
             if dropout==True:
@@ -100,7 +100,7 @@ class ConvModuleD(nn.Module):
         return x_TF, x_char, x_imp
 
 class Generator(nn.Module):
-    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=False):
+    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=True):
         super().__init__()
 
         # conv modules & toRGBs
@@ -115,17 +115,13 @@ class Generator(nn.Module):
             blocks.append(ConvModuleG(s, inch, outch, first))
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
-                attn_blocks.append(Attention(outch, num_dimension, len(sizes) - (idx+1)))
+                attn_blocks.append(DCAN(outch, num_dimension, s))
         self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
         self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
         if attention:
             self.attn_blocks = nn.ModuleList(attn_blocks)
-            self.attribute_embed = nn.Embedding(weight.shape[1], 128)
-            attrid = torch.tensor([i for i in range(weight.shape[1])])
-            self.attrid = attrid.view(1, attrid.size(0))
-
         self.size = sizes
     def impression_embedding(self, z, y_imp):
         z_cond = z[1]
@@ -145,29 +141,23 @@ class Generator(nn.Module):
         # impression embedding
         if emb:
             y_imp = self.emb_layer(y_imp)
-        y_sc, mu, logvar = self.CA_layer(y_imp, z_cond)
-        y_sc = y_sc.reshape(y_sc.size(0), y_sc.size(1), 1, 1)
+        cond, mu, logvar = self.CA_layer(y_imp, z_cond)
+        y_sc = cond.reshape(cond.size(0), cond.size(1), 1, 1)
         y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1), 4, 4)
-        # attribute embedding
-        if self.attention:
-            attrid = self.attrid.repeat(x.size(0), 1).to(y_imp.device)
-            attr_raw = self.attribute_embed(attrid)
-            y_emb = y_imp.unsqueeze(2) * attr_raw
         # for the highest resolution
         x = torch.cat([x, y_char, y_sc], axis = 1)
         res = min(res, len(self.blocks))
-
         # get integer by floor
         nlayer = max(int(res-eps), 0)
         for i in range(nlayer):
             x = self.blocks[i](x)
             if self.attention:
-                x = self.attn_blocks[i](x, y_emb)
+                x, mask = self.attn_blocks[i](x, cond)
         # high resolution
 
         x_big = self.blocks[nlayer](x)
         if self.attention:
-            x_big = self.attn_blocks[nlayer](x_big, y_emb)
+            x_big, mask = self.attn_blocks[nlayer](x_big, cond)
         dst_big = self.toRGBs[nlayer](x_big)
 
         if nlayer==0:
@@ -225,4 +215,5 @@ class Discriminator(nn.Module):
         for i in range(n):
             x, char, imp = self.blocks[n-1-i](x, cond)
         return x, char, imp
+#
 #

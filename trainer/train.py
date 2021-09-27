@@ -51,8 +51,7 @@ def pggan_train(param):
     #Dataloaderの定義
     databar = tqdm.tqdm(DataLoader)
     #マルチクラス分類
-    bce_loss_D = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight).to(opts.device)
-    bce_loss_G = torch.nn.BCEWithLogitsLoss().to(opts.device)
+    bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight).to(opts.device)
     kl_loss = KlLoss(activation='softmax').to(opts.device)
     ca_loss = CALoss()
     mse_loss = torch.nn.SmoothL1Loss().to(opts.device)
@@ -89,8 +88,8 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
         # gen_label_ = F.softmax(D_real_class.detach(), dim=1)
-        gen_label = torch.sigmoid(D_real_class.detach())
-        # gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
+        gen_label_ = torch.sigmoid(D_real_class.detach())
+        gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
@@ -100,7 +99,7 @@ def pggan_train(param):
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         # 印象語分類のロス
         # G_class_loss = kl_loss(D_fake_class, gen_label_)
-        G_class_loss = bce_loss_G(D_fake_class, gen_label) * 0.01
+        G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label_) * 100
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 
@@ -136,7 +135,7 @@ def pggan_train(param):
             D_char_loss = (kl_loss(D_real_char, char_class_oh) + kl_loss(D_fake_char, char_class_oh)) / 2
         # 印象語分類のロス
         #     D_class_loss = kl_loss(D_real_class, labels_oh)
-            D_class_loss = bce_loss_D(D_real_class, missing_prob)
+            D_class_loss = bce_loss(D_real_class, missing_prob)
             D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001
             D_optimizer.zero_grad()
             D_loss.backward()

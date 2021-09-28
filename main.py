@@ -40,8 +40,8 @@ def pgmodel_run(opts):
     co_matrix = create_co_matrix(label, ID)
     #モデルを定義
     D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num).to(opts.device)
-    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num).to(opts.device)
-    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num).to(opts.device)
+    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=True, char_num=opts.char_num).to(opts.device)
+    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=True, char_num=opts.char_num).to(opts.device)
     fid = FID()
     print("Generator:", G_model)
     print("Discriminator:", D_model)

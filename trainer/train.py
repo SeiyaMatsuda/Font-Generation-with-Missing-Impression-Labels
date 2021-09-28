@@ -76,7 +76,7 @@ def pggan_train(param):
         # 文字クラスのone-hotベクトル化
         char_class_oh = torch.eye(opts.char_num)[char_class].to(opts.device)
         # 印象語のベクトル化
-        labels_oh = Multilabel_OneHot(labels, len(ID), normalize=False)
+        labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
         missing_prob = missing2prob(labels_oh, co_matrix).to(opts.device)
         # labels_oh = missing2clean(missing_prob).to(opts.device)
         # labels_oh = torch.eye(len(ID))[labels-1].to(opts.device)
@@ -98,8 +98,8 @@ def pggan_train(param):
         # 文字クラス分類のロス
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         # 印象語分類のロス
-        # G_class_loss = kl_loss(D_fake_class, gen_label_)
-        G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label_) * 1000
+        G_class_loss = kl_loss(D_fake_class, gen_label_)
+        # G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label_) * 1000
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 
@@ -134,8 +134,8 @@ def pggan_train(param):
             # 文字クラス分類のロス
             D_char_loss = (kl_loss(D_real_char, char_class_oh) + kl_loss(D_fake_char, char_class_oh)) / 2
         # 印象語分類のロス
-        #     D_class_loss = kl_loss(D_real_class, labels_oh)
-            D_class_loss = bce_loss(D_real_class, missing_prob)
+            D_class_loss = kl_loss(D_real_class, missing_prob)
+        #     D_class_loss = bce_loss(D_real_class, missing_prob)
             D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001
             D_optimizer.zero_grad()
             D_loss.backward()

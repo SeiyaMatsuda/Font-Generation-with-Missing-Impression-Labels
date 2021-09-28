@@ -99,7 +99,7 @@ def pggan_train(param):
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         # 印象語分類のロス
         # G_class_loss = kl_loss(D_fake_class, gen_label_)
-        G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label_) * 100
+        G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label_) * 1000
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 

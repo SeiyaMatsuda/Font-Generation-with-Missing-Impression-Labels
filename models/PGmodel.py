@@ -100,7 +100,7 @@ class ConvModuleD(nn.Module):
         return x_TF, x_char, x_imp
 
 class Generator(nn.Module):
-    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=True):
+    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=False):
         super().__init__()
 
         # conv modules & toRGBs

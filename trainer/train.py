@@ -87,8 +87,8 @@ def pggan_train(param):
         z = (z_img, z_cond)
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
-        # gen_label_ = F.softmax(D_real_class.detach(), dim=1)
-        gen_label_ = torch.sigmoid(D_real_class.detach())
+        gen_label_ = F.softmax(D_real_class.detach(), dim=1)
+        # gen_label_ = torch.sigmoid(D_real_class.detach())
         gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)

@@ -103,7 +103,7 @@ def pggan_train(param):
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 
-        G_loss = G_TF_loss + G_char_loss + G_class_loss * 5 + G_kl_loss
+        G_loss = G_TF_loss + G_char_loss + G_class_loss + G_kl_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()

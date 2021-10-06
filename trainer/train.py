@@ -164,7 +164,7 @@ def pggan_train(param):
         iter += 1
 
         if iter % 100 == 0:
-            test_label = ['decorative', 'big', 'shading', 'manuscript', 'ghost']
+            test_label = ['decorative', 'big', 'shade', 'manuscript', 'ghost']
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)
             save_path = os.path.join(opts.logs_GAN, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))

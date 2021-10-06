@@ -79,7 +79,7 @@ if __name__=='__main__':
     impression_word_list = []
 
     #os.mkdir("./Myfont/dataset/taglabel/tag_vector")
-    for cnt_file,(i_f,t_f) in tqdm.tqdm(enumerate(zip(img_files, tag_files)), total=len(img_files)):
+    for cnt_file, (i_f, t_f) in tqdm.tqdm(enumerate(zip(img_files, tag_files)), total=len(img_files)):
         data=[]
         for ii in i_f:
             img = np.array(Image.open(ii).convert("L")) # すべての画像の読み込み
@@ -89,17 +89,17 @@ if __name__=='__main__':
         data=np.concatenate(data, axis=0)
         print(data.shape)
         save_np(i_f, data, object="img")
-    #     with open(t_f, 'r', encoding='utf-8') as f:
-    #         text = f.read()
-    #         all_tag = label_preprocess(text)
-    #         impression_word = []
-    #         for tt in all_tag:
-    #             try:
-    #                 w2v_vocab[tt] = Embedding_model[tt]
-    #                 impression_word.append(tt)
-    #             except KeyError:
-    #                 pass
-    #         impression_word_list.append(impression_word)
-    # pickle_dump(impression_word_list, os.path.join(paths, 'impression_word_list.pickle'))
-    # pickle_dump(w2v_vocab,  os.path.join(paths, 'w2v_vocab.pickle'))
+        with open(t_f, 'r', encoding='utf-8') as f:
+            text = f.read()
+            all_tag = label_preprocess(text)
+            impression_word = []
+            for tt in all_tag:
+                try:
+                    w2v_vocab[tt] = Embedding_model[tt]
+                    impression_word.append(tt)
+                except KeyError:
+                    pass
+            impression_word_list.append(impression_word)
+    pickle_dump(impression_word_list, os.path.join(paths, 'impression_word_list.pickle'))
+    pickle_dump(w2v_vocab,  os.path.join(paths, 'w2v_vocab.pickle'))
     print("save done")

@@ -23,6 +23,7 @@ def pickle_load(path):
     with open(path,mode="rb") as f:
         data=pickle.load(f)
         return data
+
 def return_index(label,weight):
     dice = list(range(len(label)))
     # 6の目が出やすいように重みを設定する
@@ -31,11 +32,6 @@ def return_index(label,weight):
     else:
         samples = random.choices(dice, k=1, weights=[1 /w **2  for w in weight])
     return samples
-def label_preprocess(text):
-    global tag_vectors
-    text=text.replace("-", " ")
-    tokens=text.split()
-    return tokens
 def tile_like(x, img):
     x = x.view(x.size(0), x.size(1), 1, 1)
     x = x.repeat(1, 1, img.size(2), img.size(3))

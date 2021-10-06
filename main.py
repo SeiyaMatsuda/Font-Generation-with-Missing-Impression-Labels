@@ -1,29 +1,26 @@
 from trainer.train import pggan_train
 # from models.DCmodel import ACGenerator, ACDiscriminator, CGenerator, CDiscriminator
 from utils.mylib import *
+from utils.logger import init_logger
 from dataset import *
 from models.PGmodel import Generator, Discriminator
 from torch.utils.tensorboard import SummaryWriter
 from utils.metrics import FID
 
-
 def make_logdir(path):
     log_dir = path
-    check_point_dir = os.path.join(log_dir, 'check_points')
     weight_dir = os.path.join(log_dir, 'weight')
     logs_GAN = os.path.join(log_dir, "learning_image")
     learning_log_dir = os.path.join(log_dir, "learning_log")
     if not os.path.exists(log_dir):
-        os.makedirs(check_point_dir)
-    if not os.path.exists(check_point_dir):
-        os.makedirs(check_point_dir)
+        os.makedirs(log_dir)
     if not os.path.exists(weight_dir):
         os.makedirs(weight_dir)
     if not os.path.exists(logs_GAN):
         os.makedirs(logs_GAN)
     if not os.path.exists(learning_log_dir):
         os.makedirs(learning_log_dir)
-    return log_dir, check_point_dir,  weight_dir, logs_GAN, learning_log_dir
+    return log_dir, weight_dir, logs_GAN, learning_log_dir
 
 def pgmodel_run(opts):
     data = np.array([np.load(d) for d in opts.data])
@@ -40,8 +37,8 @@ def pgmodel_run(opts):
     co_matrix = create_co_matrix(label, ID)
     #モデルを定義
     D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num).to(opts.device)
-    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=False, char_num=opts.char_num).to(opts.device)
-    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=False, char_num=opts.char_num).to(opts.device)
+    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=True, char_num=opts.char_num).to(opts.device)
+    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=True, char_num=opts.char_num).to(opts.device)
     fid = FID()
     print("Generator:", G_model)
     print("Discriminator:", D_model)
@@ -76,9 +73,10 @@ def pgmodel_run(opts):
 
     for epoch in range(opts.num_epochs):
         start_time = time.time()
+        LOGGER.info(f"================epoch_{epoch}================")
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
-        param = {"opts": opts, 'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
+        param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid,
                  'DataLoader': DataLoader, 'co_matrix': co_matrix, 'pos_weight': pos_weight,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
@@ -109,26 +107,25 @@ def pgmodel_run(opts):
         secs = secs % 60
 
         # エポックごとに結果を表示
-        print('Epoch: %d' % (epoch + 1), " | 所要時間 %d 分 %d 秒" % (mins, secs))
-        print(f'\tLoss: {check_point["D_epoch_TF_losses"]:.4f}(Discriminator_TF)')
-        print(f'\tLoss: {check_point["G_epoch_TF_losses"]:.4f}(Generator_TF)')
-        print(f'\tLoss: {check_point["D_epoch_cl_losses"]:.4f}(Discriminator_class)')
-        print(f'\tLoss: {check_point["G_epoch_cl_losses"]:.4f}(Generator_class)')
-        print(f'\tLoss: {check_point["D_epoch_ch_losses"]:.4f}(Discriminator_char)')
-        print(f'\tLoss: {check_point["G_epoch_ch_losses"]:.4f}(Generator_char)')
-        print(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
-        print(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
+        LOGGER.info("所要時間 %d 分 %d 秒" % (mins, secs))
+        LOGGER.info(f'\tLoss: {check_point["D_epoch_TF_losses"]:.4f}(Discriminator_TF)')
+        LOGGER.info(f'\tLoss: {check_point["G_epoch_TF_losses"]:.4f}(Generator_TF)')
+        LOGGER.info(f'\tLoss: {check_point["D_epoch_cl_losses"]:.4f}(Discriminator_class)')
+        LOGGER.info(f'\tLoss: {check_point["G_epoch_cl_losses"]:.4f}(Generator_class)')
+        LOGGER.info(f'\tLoss: {check_point["D_epoch_ch_losses"]:.4f}(Discriminator_char)')
+        LOGGER.info(f'\tLoss: {check_point["G_epoch_ch_losses"]:.4f}(Generator_char)')
+        LOGGER.info(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
+        LOGGER.info(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
        # モデル保存のためのcheckpointファイルを作成
-        if (epoch + 1) % 5 == 0:
-            torch.save(check_point, os.path.join(opts.check_point_dir, 'check_point_epoch_%d.pth' % (epoch)))
-
         if iter_start >= 100000:
             break
 
     writer.close()
     return D_TF_loss_list, G_TF_loss_list, D_cl_loss_list, G_cl_loss_list
 
-def main():
+
+
+if __name__=="__main__":
     parser = get_parser()
     opts = parser.parse_args()
     # 再現性確保のためseed値固定
@@ -138,13 +135,21 @@ def main():
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
-    #make dirs
-    opts.log_dir, opts.check_point_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
+    # make dirs
+    opts.log_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))
-    #回すモデルの選定
+    # 回すモデルの選定
     print(f"device::{opts.device}")
+    LOGGER = init_logger(opts.log_dir)
+    LOGGER.info(f"================hyper parameter================")
+    LOGGER.info(f"batch_size:{opts.batch_size}")
+    LOGGER.info(f"g_lr:{opts.g_lr}")
+    LOGGER.info(f"d_lr:{opts.d_lr}")
+    LOGGER.info(f"img_size:{opts.img_size}")
+    LOGGER.info(f"w2v_dimension:{opts.w2v_dimension}")
+    LOGGER.info(f"num_dimension:{opts.num_dimension}")
+    LOGGER.info(f"latent_size:{opts.latent_size}")
+    LOGGER.info(f"num_epochs:{opts.num_epochs}")
+    LOGGER.info(f"char_num:{opts.char_num}")
+
     pgmodel_run(opts)
-        # shutil.rmtree(opts.log_dir)
-        # print(traceback.format_exc())
-if __name__=="__main__":
-    main()

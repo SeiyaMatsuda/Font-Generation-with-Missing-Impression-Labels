@@ -167,13 +167,10 @@ class ImpEmbedding(nn.Module):
         for i in range(residual_num):
             res_block.append(ResidualBlock(num_dimension))
         self.res_block = nn.Sequential(*res_block)
-    def forward(self, labels , w2v = True):
+    def forward(self, labels , w2v=True):
         if w2v:
             labels = labels.view(labels.size(0), labels.size(1), 1)
             attr = torch.mul(self.embed.weight.data, labels)
-            # attr = list(map(lambda x:x[x.sum(2)!=0], attr.split(1)))
-            # attr = torch.cat(list(map(lambda x:x[torch.tensor(random.choices(range(len(x)), k=1574))], attr)), dim=0)
-            # attr = attr.view(-1, 1574, 300)/ 1574
         else:
             attr = labels
         if self.sum_weight:
@@ -184,7 +181,7 @@ class ImpEmbedding(nn.Module):
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)
-            attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1))
+            attr = attr/(torch.linalg.norm(attr, dim=1).unsqueeze(1) + 1e-7)
         attr = self.res_block(attr)
         return attr
 class Conditioning_Augumentation(nn.Module):

@@ -40,8 +40,10 @@ def pgmodel_run(opts):
     G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=True, char_num=opts.char_num).to(opts.device)
     G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=True, char_num=opts.char_num).to(opts.device)
     fid = FID()
-    print("Generator:", G_model)
-    print("Discriminator:", D_model)
+    LOGGER.info(f"================Generator================")
+    LOGGER.info(f"{G_model}")
+    LOGGER.info(f"================Discriminator================")
+    LOGGER.info(f"{D_model}")
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
@@ -90,17 +92,6 @@ def pgmodel_run(opts):
         G_ch_loss_list.append(check_point["G_epoch_ch_losses"])
         real_acc_list.append(check_point["epoch_real_acc"])
         fake_acc_list.append(check_point["epoch_fake_acc"])
-
-        history = {'D_TF_loss': D_TF_loss_list,
-         'G_TF_loss': G_TF_loss_list,
-         'D_class_loss': D_cl_loss_list,
-         'G_class_loss': G_cl_loss_list,
-         'D_char_loss': D_ch_loss_list,
-         'G_char_loss': G_ch_loss_list
-                   }
-
-        accuracy = {'real_acc': real_acc_list,
-                    'fake_acc': fake_acc_list}
 
         secs = int(time.time() - start_time)
         mins = secs / 60
@@ -151,5 +142,6 @@ if __name__=="__main__":
     LOGGER.info(f"latent_size:{opts.latent_size}")
     LOGGER.info(f"num_epochs:{opts.num_epochs}")
     LOGGER.info(f"char_num:{opts.char_num}")
+    LOGGER.info(f"impression_word_num:{opts.num_impression_word}")
 
     pgmodel_run(opts)

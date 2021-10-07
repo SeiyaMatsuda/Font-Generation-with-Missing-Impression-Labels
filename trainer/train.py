@@ -88,7 +88,6 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
         gen_label_ = F.softmax(D_real_class.detach(), dim=1)
-        # gen_label_ = torch.sigmoid(D_real_class.detach())
         gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
@@ -99,11 +98,10 @@ def pggan_train(param):
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         # 印象語分類のロス
         G_class_loss = kl_loss(D_fake_class, gen_label_)
-        # G_class_loss = mse_loss(torch.sigmoid(D_fake_class), gen_label_) * 1000
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
 
-        G_loss = G_TF_loss + G_char_loss + G_class_loss * 5 + G_kl_loss
+        G_loss = G_TF_loss + G_char_loss + G_class_loss + G_kl_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()

@@ -60,7 +60,7 @@ def split_list(l, n):
     for idx in range(0,len(l),n):
         yield l[idx:idx+n]
 
-def Multilabel_OneHot(labels, n_categories, dtype=torch.float32, normalize = True):
+def Multilabel_OneHot(labels, n_categories, dtype=torch.float32, normalize=True):
     batch_size = len(labels)
     one_hot_labels = torch.zeros(size=(batch_size, n_categories), dtype=dtype)
     for i, label in enumerate(labels):
@@ -112,8 +112,7 @@ def create_co_matrix(label, ID):
         for idx in ll:
             co_matrix[idx] += one_hot_labels
     return co_matrix
-#
-#
+
 def missing2prob(input, co_matrix):
     co_matrix = co_matrix/(co_matrix.sum(0)+1e-7)
     output = torch.mm(input, co_matrix.T)

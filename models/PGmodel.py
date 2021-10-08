@@ -1,4 +1,20 @@
 from .common import *
+class Mapping_net(nn.Module):
+    def __init__(self, dim_latent, n_fc):
+        super().__init__()
+        super().__init__()
+        layers = [PixelNorm()]
+        for i in range(n_fc):
+            layers.append(nn.Linear(dim_latent, dim_latent))
+            if i == n_fc-1:
+                layers.append(nn.Sigmoid())
+            else:
+                layers.append(nn.LeakyReLU(0.2))
+        self.mapping = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.mapping(x)
+
 class ConvModuleG(nn.Module):
     '''
     Args:
@@ -116,6 +132,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(DCAN(outch, num_dimension, s))
+        # self.mapping = Mapping_net(dim_latent=weight.shape[0], n_fc=8)
         self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
         self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)

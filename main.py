@@ -130,9 +130,9 @@ if __name__=="__main__":
     opts.log_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))
     # 回すモデルの選定
-    print(f"device::{opts.device}")
     LOGGER = init_logger(opts.log_dir)
     LOGGER.info(f"================hyper parameter================")
+    LOGGER.info(f"device::{opts.device}")
     LOGGER.info(f"batch_size:{opts.batch_size}")
     LOGGER.info(f"g_lr:{opts.g_lr}")
     LOGGER.info(f"d_lr:{opts.d_lr}")
@@ -143,5 +143,4 @@ if __name__=="__main__":
     LOGGER.info(f"num_epochs:{opts.num_epochs}")
     LOGGER.info(f"char_num:{opts.char_num}")
     LOGGER.info(f"impression_word_num:{opts.num_impression_word}")
-
     pgmodel_run(opts)

@@ -72,11 +72,11 @@ class ConvModuleD(nn.Module):
                 layers.insert(4, nn.Dropout2d(0.5))
             layer_TF = [nn.Conv2d(outch, 1, 4, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
-            layer_imp = [nn.Flatten(),
-                nn.Linear(outch * 4 * 4, 2 * imp_num),
-                nn.Dropout(p=0.5),
+            layer_imp = [
+                nn.Flatten(),
+                nn.Linear(outch * 4 * 4, 300),
                 nn.LeakyReLU(0.2, inplace=True),
-                nn.Linear(2 * imp_num, imp_num)]
+                nn.Linear(300, imp_num)]
 
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)

@@ -37,8 +37,8 @@ def pgmodel_run(opts):
     co_matrix = create_co_matrix(label, ID)
     #モデルを定義
     D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num).to(opts.device)
-    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=False, char_num=opts.char_num).to(opts.device)
-    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=False, char_num=opts.char_num).to(opts.device)
+    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
+    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
     fid = FID()
     LOGGER.info(f"================Generator================")
     LOGGER.info(f"{G_model}")
@@ -136,6 +136,7 @@ if __name__=="__main__":
     LOGGER.info(f"batch_size:{opts.batch_size}")
     LOGGER.info(f"g_lr:{opts.g_lr}")
     LOGGER.info(f"d_lr:{opts.d_lr}")
+    LOGGER.info(f"attention:{opts.attention}")
     LOGGER.info(f"img_size:{opts.img_size}")
     LOGGER.info(f"w2v_dimension:{opts.w2v_dimension}")
     LOGGER.info(f"num_dimension:{opts.num_dimension}")

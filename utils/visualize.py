@@ -3,7 +3,9 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from torchvision.utils import save_image
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from .mylib import tile
+from sklearn.decomposition import PCA
 def visualizer(path, G_model, z, char_num, label, res, device):
     G_model.eval()
     z_img = z[0]
@@ -33,3 +35,24 @@ def learning_curve(dict, path, title ='learning_curve', x_label = 'epoch', y_lab
     plt.savefig(path)
     plt.clf()
     plt.close()
+
+def imscatter(x, y, data, ax=None, zoom=1):
+    if ax is None:
+        ax = plt.gca()
+    artists = []
+    for x0, y0, d in zip(x, y, data):
+        im = OffsetImage(d, cmap = plt.cm.gray_r, zoom=zoom)
+        ab = AnnotationBbox(im, (x0, y0), xycoords='data', frameon=False,zorder=1)
+        artists.append(ax.add_artist(ab))
+    return artists
+def visualize_semantic_condition(weight, image, attr):
+    pca = PCA(n_components=2)
+    x, y = pca.fit(weight)
+    fig, ax = plt.subplots(figsize=(20.0, 20.0))
+    imscatter(x, y, 255 - image[:, 0, :, :].to('cpu').detach().numpy().copy(), ax=ax,  zoom=.25)
+    ax.plot(x, y, 'o', alpha=0)
+    ax.autoscale()
+    v = v/(torch.linalg.norm(v, dim=0) + 1e-7)
+    x, y = pca.transform(v.reshape(1, -1)).T
+    ax.plot(x, y, 'o', color='green', markersize=10, zorder=2)
+    plt.show()

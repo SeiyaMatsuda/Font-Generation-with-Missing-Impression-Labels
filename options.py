@@ -19,6 +19,7 @@ def get_parser():
     parser.add_argument('--g_lr', type=float, default=0.0005)
     parser.add_argument('--d_lr', type=float, default=0.0005)
     parser.add_argument('--attention', type=bool, default=False)
+    parser.add_argument('--visualize_sc', type=bool, default=True)
     parser.add_argument('--num_critic', type=int, default=1)
     parser.add_argument('--lambda_gp', type=int, default=10)
     parser.add_argument('--num_iterations', type=int, default=100000)
@@ -41,5 +42,7 @@ def get_parser():
         w2v_vocab = pickle_load(os.path.join(path, 'w2v_vocab.pickle'))
         parser.add_argument('--w2v_vocab', type=dict, default=w2v_vocab)
         parser.add_argument('--num_impression_word', type=int, default=len(w2v_vocab))
+    #     parser.add_argument('--correct_impression_word_list', type=list,
+    #                         default=pickle_load(os.path.join(path, 'correct_impression_word_list.pickle')))
     return parser
 

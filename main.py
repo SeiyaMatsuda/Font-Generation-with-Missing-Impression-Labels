@@ -6,6 +6,7 @@ from dataset import *
 from models.PGmodel import Generator, Discriminator
 from torch.utils.tensorboard import SummaryWriter
 from utils.metrics import FID
+from  utils.visualize import visualize_semantic_condition
 
 def make_logdir(path):
     log_dir = path
@@ -72,7 +73,12 @@ def pgmodel_run(opts):
                               transform=transform)
     bs = opts.batch_size
     pos_weight = dataset.pos_weight
-
+    # visualize semantic_condition
+    if opts.visualize_sc:
+        opts.vsc = visualize_semantic_condition(weights)
+        idx = random.sample(list(range(len(data))), 512)
+        A = data[idx][:, 0, :, :]
+        opts.test_A = transform(torch.from_numpy(A.astype(np.float32)).clone().unsqueeze(1))
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")

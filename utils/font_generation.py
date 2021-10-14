@@ -30,12 +30,11 @@ class Font_Generator:
         z_img = tile(z_img, 0, char_num).to(device)
         z_cond = tile(z_cond, 0, char_num).to(device)
         label = [[self.ID[token] for token in impression_word]]
-        label = Multilabel_OneHot(label, len(self.ID), normalize = True)
+        label = Multilabel_OneHot(label, len(self.ID), normalize=True)
         label = torch.tensor(label).repeat(char_num * generate_num, 1).to(self.device)
-        noise = (z_img,z_cond)
+        noise = (z_img, z_cond)
         with torch.no_grad():
             samples = self.G_model(noise, char_class, label, 5)[0]
             samples = samples.data.cpu()
-            samples = (samples/2)+0.5
             samples = samples.reshape(-1, char_num, samples.size(2), samples.size(3))
         return samples

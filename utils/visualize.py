@@ -17,7 +17,7 @@ def visualizer(path, G_model, z, char_num, label, res, device):
     z_cond = tile(z_cond, 0, char_num).repeat(label_shape[0], 1).to(device)
     label = tile(label, 0, char_num * z_shape[0]).to(device)
     z = (z_img, z_cond)
-    with torch.no_grad():
+    with torch.inference_mode():
         samples = G_model(z, char, label, res)[0].data.cpu()
         samples = F.interpolate(samples, (128, 128), mode='nearest')
         samples = samples/2 + 0.5
@@ -42,17 +42,20 @@ def imscatter(x, y, data, ax=None, zoom=1):
     artists = []
     for x0, y0, d in zip(x, y, data):
         im = OffsetImage(d, cmap = plt.cm.gray_r, zoom=zoom)
-        ab = AnnotationBbox(im, (x0, y0), xycoords='data', frameon=False,zorder=1)
+        ab = AnnotationBbox(im, (x0, y0), xycoords='data', frameon=False, zorder=1)
         artists.append(ax.add_artist(ab))
     return artists
-def visualize_semantic_condition(weight, image, attr):
-    pca = PCA(n_components=2)
-    x, y = pca.fit(weight)
-    fig, ax = plt.subplots(figsize=(20.0, 20.0))
-    imscatter(x, y, 255 - image[:, 0, :, :].to('cpu').detach().numpy().copy(), ax=ax,  zoom=.25)
-    ax.plot(x, y, 'o', alpha=0)
-    ax.autoscale()
-    v = v/(torch.linalg.norm(v, dim=0) + 1e-7)
-    x, y = pca.transform(v.reshape(1, -1)).T
-    ax.plot(x, y, 'o', color='green', markersize=10, zorder=2)
-    plt.show()
+class visualize_semantic_condition:
+    def __init__(self, weight):
+        self.pca = PCA(n_components=2)
+        weight = torch.tensor(weight)
+        weights_ = weight / (torch.linalg.norm(weight, dim=1).unsqueeze(1) + 1e-7)
+        self.x_, self.y_ = self.pca.fit_transform(weights_).T
+    def visualize(self, image, attr):
+        x, y = self.pca.transform(attr.data.cpu()).T
+        fig, ax = plt.subplots(figsize=(20.0, 20.0))
+        imscatter(x, y, 255 - image[:, 0, :, :].to('cpu').detach().numpy().copy(), ax=ax,  zoom=.25)
+        ax.plot(x, y, 'o', alpha=0)
+        ax.autoscale()
+        ax.plot(self.x_, self.y_, 'o', color='green', markersize=10, zorder=2, alpha=0.4)
+        return fig

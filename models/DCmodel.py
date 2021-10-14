@@ -1,8 +1,6 @@
-import torch
-from torch import nn
 from .common import *
-from .self_attention import Self_Attn
-from mylib import tile_like
+
+
 class ACGenerator(nn.Module):
     def __init__(self,  weights, z_dim = 300, num_dimension = 300, imp_num = 1574 , char_num = 26, mode = 'CP', emb = 'w2v'):
         super(ACGenerator, self).__init__()
@@ -11,13 +9,13 @@ class ACGenerator(nn.Module):
         self.imp_num = imp_num
         self.emb = emb
         if mode == 'CP':
-            sum_weight = False
-            deepsets = True
+            sum_weight = True
+            deepsets = False
         elif mode =='AC':
             sum_weight = False
             deepsets = False
         if emb == 'w2v':
-            self.w2v_layer = ImpEmbedding(weights, sum_weight=False, deepsets=True)
+            self.w2v_layer = ImpEmbedding(weights, sum_weight=sum_weight, deepsets=deepsets)
         elif emb == 'one-hot':
             num_dimension = imp_num
         self.num_dimension = num_dimension

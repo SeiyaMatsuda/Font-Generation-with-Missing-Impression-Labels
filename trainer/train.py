@@ -9,7 +9,7 @@ def gradient_penalty(netD, real, fake, cond, res, batch_size, gamma=1):
     d_= netD.forward(x, res, cond=cond)[0]
     g = torch.autograd.grad(outputs=d_, inputs=x,
                             grad_outputs=torch.ones(d_.shape).to(device),
-                            create_graph=True, retain_graph=True,only_inputs=True)[0]
+                            create_graph=True, retain_graph=True, only_inputs=True)[0]
     g = g.reshape(batch_size, -1)
     return ((g.norm(2,dim=1)/gamma-1.0)**2).mean()
 
@@ -78,7 +78,6 @@ def pggan_train(param):
         # 印象語のベクトル化
         labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
         missing_prob = missing2prob(labels_oh, co_matrix).to(opts.device)
-        # labels_oh = missing2clean(missing_prob).to(opts.device)
         # labels_oh = torch.eye(len(ID))[labels-1].to(opts.device)
         # training Generator
         #画像の生成に必要なノイズ作成
@@ -89,8 +88,8 @@ def pggan_train(param):
         _, _, D_real_class = D_model(real_img, res)
         gen_label_ = F.softmax(D_real_class.detach(), dim=1)
         gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
-        gen_label[gen_label > 0] = gen_label[gen_label > 0] ** 2
-        gen_label[gen_label < 0] = -gen_label[gen_label < 0] ** 2
+        # gen_label[gen_label > 0] = gen_label[gen_label > 0] ** 2
+        # gen_label[gen_label < 0] = -gen_label[gen_label < 0] ** 2
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
@@ -128,15 +127,17 @@ def pggan_train(param):
             D_fake_loss = torch.mean(D_fake)
             gp_loss = gradient_penalty(D_model, real_img.data, fake_img.data, mu, res, real_img.shape[0])
             loss_drift = (D_real_TF ** 2).mean()
-
+            ## scに関する一貫性損失
+            sc_ = G_model.module.impression_embedding(gen_label).to(opts.device)
+            sc = G_model.module.mean_embedding_representation(labels_oh).to(opts.device)
+            D_consistency_loss = mse_loss(sc_, sc)
             #Wasserstein lossの計算
             D_TF_loss = D_fake_loss + D_real_loss + opts.lambda_gp * gp_loss
             # 文字クラス分類のロス
             D_char_loss = (kl_loss(D_real_char, char_class_oh) + kl_loss(D_fake_char, char_class_oh)) / 2
         # 印象語分類のロス
             D_class_loss = kl_loss(D_real_class, missing_prob)
-        #     D_class_loss = bce_loss(D_real_class, missing_prob)
-            D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001
+            D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001 + D_consistency_loss * 0.01
             D_optimizer.zero_grad()
             D_loss.backward()
             D_optimizer.step()
@@ -159,8 +160,8 @@ def pggan_train(param):
         writer.add_scalars("TF_loss", {'D_TF_loss': D_TF_loss, 'G_TF_loss': G_TF_loss}, iter)
         writer.add_scalars("class_loss", {'D_class_loss': D_class_loss, 'G_class_loss': G_class_loss}, iter)
         writer.add_scalars("char_loss", {'D_char_loss': D_char_loss, 'G_char_loss': G_char_loss}, iter)
+        writer.add_scalars("consistency_loss", {'consistency_loss': D_consistency_loss}, iter)
         writer.add_scalars("Acc", {'real_acc': r_acc, 'fake_acc': f_acc}, iter)
-
         iter += 1
 
         if iter % 100 == 0:
@@ -170,12 +171,23 @@ def pggan_train(param):
             save_path = os.path.join(opts.logs_GAN, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
             visualizer(save_path, G_model_mavg, test_z, opts.char_num, label, res, opts.device)
             G_model_mavg.train()
-        if iter % 1000 == 0:
+        if iter % 2000 == 0:
             weight = {'G_net': G_model_mavg.state_dict(),
                    'G_optimizer': G_optimizer.state_dict(),
                    'D_net': D_model.state_dict(),
                    'D_optimizer': D_optimizer.state_dict()}
             torch.save(weight, os.path.join(opts.weight_dir, 'weight_iter_%d.pth' % (iter)))
+            if opts.visualize_sc:
+                with torch.inference_mode():
+                    test_A = F.adaptive_avg_pool2d(opts.test_A, (img_size, img_size))
+                    _, _, test_imp = D_model(test_A.detach(), res)
+                    gen_label_ = F.softmax(test_imp.detach(), dim=1)
+                    gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
+                    gen_label[gen_label > 0] = gen_label[gen_label > 0] ** 2
+                    gen_label[gen_label < 0] = -gen_label[gen_label < 0] ** 2
+                    test_attr = G_model.module.impression_embedding(gen_label)
+                    fig_vsc = opts.vsc.visualize(opts.test_A, test_attr)
+                    fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))
         if iter==100000:
             break
 

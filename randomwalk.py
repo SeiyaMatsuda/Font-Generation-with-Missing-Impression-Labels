@@ -9,8 +9,8 @@ def make_randomwalk(log_dir):
     path = os.path.join(log_dir, '*.png')
     files = sorted(glob.glob(path))
     images = list(map(lambda file : Image.open(file) , files))[::3]
-    images = [i.resize((i.size[0]//8,i.size[1]//8)) for i in images]
-    images[0].save(os.path.join(log_dir, 'randomwalk.gif'), save_all=True, append_images=images, duration=10, loop=0)
+    images = [i.resize((i.size[0]//4,i.size[1]//4)) for i in images]
+    images[0].save(os.path.join(log_dir, 'randomwalk.gif'), save_all=True, append_images=images, duration=15, loop=0)
 
 if __name__ == '__main__':
     make_randomwalk(opts.logdir)

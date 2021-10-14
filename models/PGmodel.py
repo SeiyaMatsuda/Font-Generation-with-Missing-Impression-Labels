@@ -121,6 +121,7 @@ class Generator(nn.Module):
 
         # conv modules & toRGBs
         self.attention = attention
+        self.weight = torch.tensor(weight)
         scale = 1
         inchs  = np.array([latent_size + char_num + num_dimension, 256, 128, 64, 32], dtype=np.uint32)*scale
         outchs = np.array([256, 128, 64, 32, 16], dtype=np.uint32)*scale
@@ -140,12 +141,12 @@ class Generator(nn.Module):
         if attention:
             self.attn_blocks = nn.ModuleList(attn_blocks)
         self.size = sizes
-    def impression_embedding(self, z, y_imp):
-        z_cond = z[1]
+    def impression_embedding(self, y_imp):
         y_imp = self.emb_layer(y_imp)
-        y_sc, mu, logvar = self.CA_layer(y_imp, z_cond)
-        return y_imp, mu
-
+        return y_imp
+    def mean_embedding_representation(self, y_imp):
+        y_imp = torch.mul(self.weight/(torch.linalg.norm(self.weight, dim=1).unsqueeze(1) + 1e-7), y_imp.unsqueeze(2)).mean(axis=1)
+        return y_imp
     def forward(self, z, y_char, y_imp, res, eps=1e-7,  emb=True):
         # to image
         x = z[0]

@@ -137,7 +137,7 @@ def pggan_train(param):
             D_char_loss = (kl_loss(D_real_char, char_class_oh) + kl_loss(D_fake_char, char_class_oh)) / 2
         # 印象語分類のロス
             D_class_loss = kl_loss(D_real_class, missing_prob)
-            D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001 + D_consistency_loss * 0.01
+            D_loss = D_TF_loss + D_char_loss + D_class_loss + loss_drift * 0.001 + D_consistency_loss
             D_optimizer.zero_grad()
             D_loss.backward()
             D_optimizer.step()

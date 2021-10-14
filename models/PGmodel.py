@@ -145,7 +145,7 @@ class Generator(nn.Module):
         y_imp = self.emb_layer(y_imp)
         return y_imp
     def mean_embedding_representation(self, y_imp):
-        y_imp = torch.mul(self.weight/(torch.linalg.norm(self.weight, dim=1).unsqueeze(1) + 1e-7), y_imp.unsqueeze(2)).mean(axis=1)
+        y_imp = torch.mul(self.weight/(torch.linalg.norm(self.weight, dim=1).unsqueeze(1) + 1e-7), y_imp.unsqueeze(2)).sum(axis=1)
         return y_imp
     def forward(self, z, y_char, y_imp, res, eps=1e-7,  emb=True):
         # to image

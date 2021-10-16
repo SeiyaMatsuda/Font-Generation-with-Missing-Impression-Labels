@@ -57,7 +57,7 @@ class ConvModuleD(nn.Module):
         outch: (int), Ex.: 128
     '''
 
-    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, dropout=False):
+    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, compress=False, dropout=False):
         super().__init__()
         self.final = final
         if final:
@@ -68,16 +68,20 @@ class ConvModuleD(nn.Module):
                 Conv2d(outch + num_dimension, outch, 3, padding=1),
                 nn.LeakyReLU(0.2, inplace=True),
             ]
-            if dropout==True:
+            if dropout:
                 layers.insert(4, nn.Dropout2d(0.5))
             layer_TF = [nn.Conv2d(outch, 1, 4, padding=0)]
             layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
-            layer_imp = [
-                nn.Flatten(),
-                nn.Linear(outch * 4 * 4, 300),
-                nn.LeakyReLU(0.2, inplace=True),
-                nn.Linear(300, imp_num)]
-
+            if compress:
+                layer_imp = [
+                    nn.Flatten(),
+                    nn.Linear(outch * 4 * 4, 300),
+                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.Linear(300, imp_num)]
+            else:
+                layer_imp = [
+                    nn.Flatten(),
+                    nn.Linear(outch * 4 * 4, imp_num)]
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)
             self.layer_imp = nn.Sequential(*layer_imp)
@@ -116,7 +120,7 @@ class ConvModuleD(nn.Module):
         return x_TF, x_char, x_imp
 
 class Generator(nn.Module):
-    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=300, char_num=26, attention=False):
+    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=100, char_num=26, attention=False):
         super().__init__()
 
         # conv modules & toRGBs
@@ -128,12 +132,15 @@ class Generator(nn.Module):
         sizes = np.array([4, 8, 16, 32, 64], dtype=np.uint32)
         firsts = np.array([True, False, False, False, False],  dtype=np.bool)
         blocks, toRGBs, attn_blocks = [], [], []
+        if attention:
+            self.constraints_embed = nn.Embedding(num_dimension, sizes[-1])
+            cdim_id = torch.tensor([list(range(num_dimension))])
+            self.cdim_id = cdim_id.view(1, num_dimension)
         for idx, (s, inch, outch, first) in enumerate(zip(sizes, inchs, outchs, firsts)):
             blocks.append(ConvModuleG(s, inch, outch, first))
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
-                attn_blocks.append(DCAN(outch, num_dimension, s))
-        # self.mapping = Mapping_net(dim_latent=weight.shape[0], n_fc=8)
+                attn_blocks.append(DCAN(outch, num_dimension, 4 - idx))
         self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
         self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)
@@ -162,6 +169,10 @@ class Generator(nn.Module):
         cond, mu, logvar = self.CA_layer(y_imp, z_cond)
         y_sc = cond.reshape(cond.size(0), cond.size(1), 1, 1)
         y_sc = y_sc.expand(y_sc.size(0), y_sc.size(1), 4, 4)
+        if self.attention:
+            cdim_id = self.cdim_id.repeat(x.size(0), 1).to(x.device)
+            cdim_raw = self.constraints_embed(cdim_id)
+            attr_feature = mu.unsqueeze(2) * cdim_raw
         # for the highest resolution
         x = torch.cat([x, y_char, y_sc], axis = 1)
         res = min(res, len(self.blocks))
@@ -170,12 +181,12 @@ class Generator(nn.Module):
         for i in range(nlayer):
             x = self.blocks[i](x)
             if self.attention:
-                x, mask = self.attn_blocks[i](x, cond)
+                x = self.attn_blocks[i](x, attr_feature)
         # high resolution
 
         x_big = self.blocks[nlayer](x)
         if self.attention:
-            x_big, mask = self.attn_blocks[nlayer](x_big, cond)
+            x_big = self.attn_blocks[nlayer](x_big, attr_feature)
         dst_big = self.toRGBs[nlayer](x_big)
 
         if nlayer==0:
@@ -189,7 +200,7 @@ class Generator(nn.Module):
         return torch.tanh(x), mu, logvar
 
 class Discriminator(nn.Module):
-    def __init__(self, num_dimension=300, imp_num=1574, char_num=26):
+    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True):
         super().__init__()
 
         self.minbatch_std = Minibatch_std()
@@ -204,7 +215,7 @@ class Discriminator(nn.Module):
         blocks, fromRGBs = [], []
         for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
             fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))
-            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout))
+            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress))
 
         self.fromRGBs = nn.ModuleList(fromRGBs)
         self.blocks = nn.ModuleList(blocks)

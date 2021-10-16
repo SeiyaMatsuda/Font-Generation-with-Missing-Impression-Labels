@@ -312,31 +312,35 @@ class Attention(nn.Module):
         return out
 
 class DCAN(nn.Module):
-    def __init__(self, in_channel, num_dimension, img_size):
+    def __init__(self, in_channel, attr_channel, attr_down_scale):
         super().__init__()
+        attr_layers = []
+        for _ in range(attr_down_scale):
+            attr_layers += [nn.Conv2d(attr_channel, attr_channel, kernel_size=4,
+                                      stride=2, padding=1, bias=True),
+                            CALayer2d(attr_channel),
+                            nn.LeakyReLU(0.2, inplace=True)]
+        self.attr_layer = nn.Sequential(*attr_layers)
 
         self.attn_conv = nn.Sequential(
-           DeformConv2d(in_channel + num_dimension, 1, 3, 1, 1),
+           DeformConv2d(in_channel + attr_channel, 1, 3, 1, 1),
             nn.Sigmoid()
         )
-        self.constraints_embed = nn.Embedding(num_dimension, img_size)
-        cdim_id = torch.tensor([i for i in range(num_dimension)])
-        self.cdim_id = cdim_id.view(1, num_dimension)
-
+        self.sa_layer =  nn.Sequential(
+            SelfAttention(in_channel),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
         self.mask_ = None
 
-    def forward(self, x, cond):
-        cdim_id = self.cdim_id.repeat(x.size(0), 1).to(x.device)
-        cdim_raw = self.constraints_embed(cdim_id)
-        cond_embed = cond.unsqueeze(2) * cdim_raw
-        cond_feature = cond_embed.unsqueeze(-1)
-        cond_featureT = torch.transpose(cond_feature, 2, 3)
-        cond_feature2d = torch.matmul(cond_feature, cond_featureT)
-        attn = self.attn_conv(torch.cat([x, cond_feature2d], axis=1))  # [B, 1, H, W]
-        self.mask_ = attn.detach().cpu()
-
-        x = x * attn
-        return x, self.mask_
+    def forward(self, x, attr_feature):
+        attr_feature = attr_feature.unsqueeze(-1)
+        attr_featureT = torch.transpose(attr_feature, 2, 3)
+        attr_feature2d = torch.matmul(attr_feature, attr_featureT)
+        attr = self.attr_layer(attr_feature2d)
+        mask = self.attn_conv(torch.cat([x, attr], axis=1))  # [B, 1, H, W]
+        x = x * mask
+        x = self.sa_layer(x)
+        return x
 
 ##PGmodel_module
 class PixelNorm(nn.Module):

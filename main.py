@@ -37,7 +37,7 @@ def pgmodel_run(opts):
     w2v_dimension = weights.shape[1]
     co_matrix = create_co_matrix(label, ID)
     #モデルを定義
-    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num).to(opts.device)
+    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress).to(opts.device)
     G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
     G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
     fid = FID()
@@ -67,7 +67,7 @@ def pgmodel_run(opts):
 
     transform = Transform()
     #training param
-    iter_start = 0
+    iter_start = opts.start_iterations
     writer = SummaryWriter(log_dir=opts.learning_log_dir)
     dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
                               transform=transform)
@@ -137,17 +137,26 @@ if __name__=="__main__":
         make_logdir(os.path.join(opts.root, opts.dt_now))
     # 回すモデルの選定
     LOGGER = init_logger(opts.log_dir)
-    LOGGER.info(f"================hyper parameter================")
-    LOGGER.info(f"device::{opts.device}")
-    LOGGER.info(f"batch_size:{opts.batch_size}")
-    LOGGER.info(f"g_lr:{opts.g_lr}")
-    LOGGER.info(f"d_lr:{opts.d_lr}")
-    LOGGER.info(f"attention:{opts.attention}")
-    LOGGER.info(f"img_size:{opts.img_size}")
-    LOGGER.info(f"w2v_dimension:{opts.w2v_dimension}")
-    LOGGER.info(f"num_dimension:{opts.num_dimension}")
-    LOGGER.info(f"latent_size:{opts.latent_size}")
-    LOGGER.info(f"num_epochs:{opts.num_epochs}")
-    LOGGER.info(f"char_num:{opts.char_num}")
-    LOGGER.info(f"impression_word_num:{opts.num_impression_word}")
+    LOGGER.info(f"================hyper parameter================ \n"
+                f"device::{opts.device}\n"
+                f"batch_size:{opts.batch_size}\n"
+                f"g_lr:{opts.g_lr}\n"
+                f"d_lr:{opts.d_lr}\n"
+                f"start_iteration:{opts.start_iterations}\n"
+                f"res_step:{opts.res_step}\n"
+                f"attention:{opts.attention}\n"
+                f"label_transform:{opts.label_transform}\n"
+                f"label_compress:{opts.label_compress}\n"
+                f"consistency_loss:{opts.consistency_loss}\n"
+                f"img_size:{opts.img_size}\n"
+                f"w2v_dimension:{opts.w2v_dimension}\n"
+                f"num_dimension:{opts.num_dimension}\n"
+                f"latent_size:{opts.latent_size}\n"
+                f"num_epochs:{opts.num_epochs}\n"
+                f"char_num:{opts.char_num}\n"
+                f"num_critic:{opts.num_critic}\n"
+                f"lambda_gp:{opts.lambda_gp}\n"
+                f"lambda_drift:{opts.lambda_drift}\n"
+                f"lambda_consistent:{opts.lambda_consistent}\n"
+                f"lambda_class:{opts.lambda_class}\n")
     pgmodel_run(opts)

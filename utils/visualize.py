@@ -12,7 +12,9 @@ def visualizer(path, G_model, z, char_num, label, res, device):
     z_cond = z[1]
     z_shape = z_img.shape
     label_shape = label.shape
-    char = torch.eye(char_num).repeat(z_shape[0] * label_shape[0], 1).to(device)
+    ABCHERONS = torch.tensor([0, 1, 2, 7, 4, 17, 14, 13, 18])
+    char = torch.eye(char_num)[ABCHERONS].repeat(z_shape[0] * label_shape[0], 1).to(device)
+    char_num = len(ABCHERONS)
     z_img = tile(z_img, 0, char_num).repeat(label_shape[0], 1).to(device)
     z_cond = tile(z_cond, 0, char_num).repeat(label_shape[0], 1).to(device)
     label = tile(label, 0, char_num * z_shape[0]).to(device)

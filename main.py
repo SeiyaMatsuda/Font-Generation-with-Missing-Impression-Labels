@@ -78,6 +78,7 @@ def pgmodel_run(opts):
         opts.vsc = visualize_semantic_condition(weights)
         idx = random.sample(list(range(len(data))), 512)
         A = data[idx][:, 0, :, :]
+        opts.test_char = torch.eye(opts.char_num)[0].unsqueeze(0).repeat(512, 1)
         opts.test_A = transform(torch.from_numpy(A.astype(np.float32)).clone().unsqueeze(1))
     for epoch in range(opts.num_epochs):
         start_time = time.time()
@@ -94,8 +95,6 @@ def pgmodel_run(opts):
         G_TF_loss_list.append(check_point["G_epoch_TF_losses"])
         D_cl_loss_list.append(check_point["D_epoch_cl_losses"])
         G_cl_loss_list.append(check_point["G_epoch_cl_losses"])
-        D_ch_loss_list.append(check_point["D_epoch_ch_losses"])
-        G_ch_loss_list.append(check_point["G_epoch_ch_losses"])
         real_acc_list.append(check_point["epoch_real_acc"])
         fake_acc_list.append(check_point["epoch_fake_acc"])
 
@@ -109,8 +108,6 @@ def pgmodel_run(opts):
         LOGGER.info(f'\tLoss: {check_point["G_epoch_TF_losses"]:.4f}(Generator_TF)')
         LOGGER.info(f'\tLoss: {check_point["D_epoch_cl_losses"]:.4f}(Discriminator_class)')
         LOGGER.info(f'\tLoss: {check_point["G_epoch_cl_losses"]:.4f}(Generator_class)')
-        LOGGER.info(f'\tLoss: {check_point["D_epoch_ch_losses"]:.4f}(Discriminator_char)')
-        LOGGER.info(f'\tLoss: {check_point["G_epoch_ch_losses"]:.4f}(Generator_char)')
         LOGGER.info(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
         LOGGER.info(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
        # モデル保存のためのcheckpointファイルを作成

@@ -9,7 +9,7 @@ def get_parser():
     # Dataset option
     parser.add_argument('--img_size', type=int, default=64)
     parser.add_argument('--w2v_dimension', type=int, default=300)
-    parser.add_argument('--num_dimension', type=int, default=100)
+    parser.add_argument('--num_dimension', type=int, default=30)
     parser.add_argument('--batch_size', type=int, default=512)
     parser.add_argument('--num_epochs', type=int, default=1000)
     parser.add_argument('--latent_size', type=int, default=256)

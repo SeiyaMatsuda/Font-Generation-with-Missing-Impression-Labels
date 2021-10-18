@@ -161,7 +161,7 @@ def pggan_train(param):
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)
             save_path = os.path.join(opts.logs_GAN, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
-            visualizer(save_path, G_model_mavg, test_z, opts.char_num, label, res, opts.device)
+            visualizer(save_path, G_model_mavg, test_z, opts.char_num, label, res, opts.device, opts.nibuchan)
             G_model_mavg.train()
         if iter % 2000 == 0:
             weight = {'G_net': G_model_mavg.state_dict(),

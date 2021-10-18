@@ -6,15 +6,17 @@ from torchvision.utils import save_image
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from .mylib import tile
 from sklearn.decomposition import PCA
-def visualizer(path, G_model, z, char_num, label, res, device):
+def visualizer(path, G_model, z, char_num, label, res, device, nibuchan):
     G_model.eval()
     z_img = z[0]
     z_cond = z[1]
     z_shape = z_img.shape
     label_shape = label.shape
-    ABCHERONS = torch.tensor([0, 1, 2, 7, 4, 17, 14, 13, 18])
-    char = torch.eye(char_num)[ABCHERONS].repeat(z_shape[0] * label_shape[0], 1).to(device)
-    char_num = len(ABCHERONS)
+    char_cl = torch.tensor([0, 1, 2, 7, 4, 17, 14, 13, 18])
+    if nibuchan:
+        char_cl = torch.tensor([13, 8, 1, 20, 0, 10, 0, 17, 8])
+    char = torch.eye(char_num)[char_cl].repeat(z_shape[0] * label_shape[0], 1).to(device)
+    char_num = len(char_cl)
     z_img = tile(z_img, 0, char_num).repeat(label_shape[0], 1).to(device)
     z_cond = tile(z_cond, 0, char_num).repeat(label_shape[0], 1).to(device)
     label = tile(label, 0, char_num * z_shape[0]).to(device)

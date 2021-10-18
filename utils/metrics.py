@@ -13,25 +13,18 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import torch.nn.functional as F
 import numpy as np
-import tqdm
 import matplotlib.pyplot as plt
 import torchvision.models as models
 import matplotlib.animation as animation
 from IPython.display import HTML
 import cv2
 from scipy import linalg
+import tqdm
 from torch.nn.functional import adaptive_avg_pool2d
-from PIL import Image
-import matplotlib.pyplot as plt
-import sys
+from utils.mylib import Multilabel_OneHot
 import numpy as np
 import os
-try:
-    from tqdm import tqdm
-except ImportError:
-    # If not tqdm is not available, provide a mock version of it
-    def tqdm(x): return x
-# print(os.listdir("../input"))
+from sklearn.model_selection import KFold
 
 import time
 class InceptionV3(nn.Module):
@@ -247,6 +240,116 @@ class FID(nn.Module):
         """get fretched distance"""
         fid_value = self.calculate_frechet_distance(mu_1, std_1, mu_2, std_2)
         return fid_value
+class DataSet(torch.utils.data.Dataset):
+    def __init__(self, x, y, transform = None):
+        self.X = x * 255# 入力
+        self.Y = y # 出力
+        self.transform = transform
+    def __len__(self):
+        return len(self.X) # データ数(10)を返す
+
+    def __getitem__(self, index):
+        # index番目の入出力ペアを返す
+        X = self.X[index]
+        if self.transform:
+            X = self.transform(X)/255
+        Y = self.Y[index]
+        return X, Y
+
+class GAN_train_test(nn.Module):
+    def __init__(self, num_class, ID, device="cuda"):
+        super(GAN_train_test, self).__init__()
+        self.transform = transforms.Compose([
+            transforms.ToPILImage(),
+            transforms.Resize(224),
+            transforms.ToTensor()])
+        self.model = self.build_model(num_class).to(device)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.01)
+        self.num_class = num_class
+        self.ID = ID
+        self.device = device
+
+    def caliculate_pos_weight(self, label):
+        label = self.multi_hot_encoding(label)
+        pos_weight = (len(label) - label.sum(0)) / label.sum(0)
+        return pos_weight
+
+    def multi_hot_encoding(self, label):
+        label = [list(map(lambda x:self.ID[x], l)) for l in label]
+        label = Multilabel_OneHot(label, len(self.ID), normalize=False)
+        return label
+
+    def build_dataset(self, train_x, train_y, test_x, test_y, num_class):
+        train_y = self.multi_hot_encoding(train_y)
+        test_y = self.multi_hot_encoding(test_y)
+        train_dataset = DataSet(train_x, train_y, self.transform)
+        test_dataset = DataSet(test_x, test_y, self.transform)
+        return train_dataset, test_dataset
+
+    def build_model(self, num_class):
+        model = models.resnet18(pretrained=True)
+        model.fc = nn.Sequential(
+            nn.Linear(512, num_class)
+        )
+        return model
+
+    def train(self, inputs, target):
+        inputs, target = inputs.to(self.device), target.to(self.device)
+        self.optimizer.zero_grad()
+        prediction = self.model(inputs)
+        train_map = mean_average_precision(prediction.data.cpu(), target.data.cpu())
+        train_loss = self.criterion(prediction.to(self.device), target)
+        train_loss.backward()  # 誤差逆伝播
+        self.optimizer.step()
+        return train_map, train_loss.item()
+
+    def eval(self, inputs, target):
+        prediction = self.model(inputs)
+        eval_map = mean_average_precision(prediction.data.cpu(), target.data.cpu())
+        eval_loss = self.criterion(prediction.data.cpu(), target.data.cpu()).item()
+        return eval_map, eval_loss
+
+    def run(self, train_X, train_y, test_X, test_y, pos_weight, epochs, batch_size=64, shuffle=True):
+        self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight).to(self.device)
+        train_dataset, test_dataset = self.build_dataset(train_X, train_y, test_X, test_y, num_class=1430)
+        kf = KFold(n_splits=5)
+        CV_score = []
+        for train_indices, val_indices in kf.split(list(range(len(train_dataset)))):
+            train_dataset = torch.utils.data.Subset(train_dataset, train_indices)
+            val_dataset = torch.utils.data.Subset(train_dataset, val_indices)
+            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+            val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
+            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+            for epoch in range(epochs):
+                self.model.train()
+                train_loss = []
+                train_map = []
+                eval_loss = []
+                eval_map = []
+                for x_train, y_train in tqdm.tqdm(train_loader, total=len(train_loader)):
+                    map, loss = self.train(x_train, y_train)
+                    train_loss.append(loss)
+                    train_map.append(map)
+                self.model.eval()
+                for x_val, y_val in tqdm.tqdm(enumerate(val_loader), total=len(val_loader)):
+                    map, loss = self.eval(x_val, y_val)
+                    eval_loss.append(loss)
+                    eval_map.append(map)
+                total_train_loss = np.asarray(train_loss).mean()
+                total_train_map = np.asarray(train_map).mean()
+                total_val_loss = np.asarray(eval_loss).mean()
+                total_val_map = np.asarray(eval_map).mean()
+                print(f"Epoch: {epoch}, loss: {total_train_loss}.")
+                print(f"Epoch: {epoch}, accuracy: {total_train_map}.")
+                print(f"Epoch: {epoch}, accuracy: {total_val_loss}.")
+                print(f"Epoch: {epoch}, accuracy: {total_val_map}.")
+            test_map = []
+            for x_test, y_test in enumerate(test_loader, total=len(test_loader)):
+                test_map, _ = self.eval(x_test, y_test)
+                test_map.append(test_map)
+            score = np.asarray(test_map).mean()
+            CV_score.append(score)
+        return CV_score
 
 def pseudo_hamming(v1, v2):
     start_time=time.time()
@@ -279,3 +382,19 @@ def mean_average_precision(y_pred, y_true):
         average_precisions.append(precision[mask].mean())
     return sum(average_precisions)/len(y_true)
 
+if __name__ == '__main__':
+    import sys
+    from options import get_parser
+    sys.path.append(os.path.join(os.path.dirname("__file__"), "../../"))
+    print(sys.path)
+    parser = get_parser()
+    opts = parser.parse_args(args=[])
+    data = torch.from_numpy(np.array([np.load(d) for d in opts.data]))[:, :26, :, :].float() / 127.5 - 1
+    label = opts.impression_word_list
+    ID = {key: idx + 1 for idx, key in enumerate(opts.w2v_vocab)}
+    real_img = torch.zeros(size=(len(label), 1, 64, 64))
+    fake_img = torch.zeros(size=(len(label), 1, 64, 64))
+    a = GAN_train_test(len(ID), ID, 'cuda')
+    pos_weight = a.caliculate_pos_weight(label)
+    a.run(fake_img.expand(-1, 3, -1, -1), label, real_img.expand(-1, 3, -1, -1), label, pos_weight, 64, batch_size=64,
+          shuffle=True)

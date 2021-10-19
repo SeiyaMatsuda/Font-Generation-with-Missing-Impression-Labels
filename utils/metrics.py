@@ -19,7 +19,6 @@ import matplotlib.animation as animation
 from IPython.display import HTML
 import cv2
 from scipy import linalg
-import tqdm
 from torch.nn.functional import adaptive_avg_pool2d
 from utils.mylib import Multilabel_OneHot
 import numpy as np
@@ -27,6 +26,13 @@ import os
 from sklearn.model_selection import KFold
 
 import time
+try:
+    from tqdm import tqdm
+except ImportError:
+    # If not tqdm is not available, provide a mock version of it
+    def tqdm(x): return x
+# print(os.listdir("../input"))
+
 class InceptionV3(nn.Module):
     """Pretrained InceptionV3 network returning feature maps"""
 
@@ -326,12 +332,12 @@ class GAN_train_test(nn.Module):
                 train_map = []
                 eval_loss = []
                 eval_map = []
-                for x_train, y_train in tqdm.tqdm(train_loader, total=len(train_loader)):
+                for x_train, y_train in tqdm(train_loader, total=len(train_loader)):
                     map, loss = self.train(x_train, y_train)
                     train_loss.append(loss)
                     train_map.append(map)
                 self.model.eval()
-                for x_val, y_val in tqdm.tqdm(enumerate(val_loader), total=len(val_loader)):
+                for x_val, y_val in tqdm(enumerate(val_loader), total=len(val_loader)):
                     map, loss = self.eval(x_val, y_val)
                     eval_loss.append(loss)
                     eval_map.append(map)

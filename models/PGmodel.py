@@ -71,7 +71,7 @@ class ConvModuleD(nn.Module):
             if dropout:
                 layers.insert(4, nn.Dropout2d(0.5))
             layer_TF = [nn.Conv2d(outch, 1, 4, padding=0)]
-            # layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
+            layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
             if compress:
                 layer_imp = [
                     nn.AdaptiveAvgPool2d(1),
@@ -84,7 +84,7 @@ class ConvModuleD(nn.Module):
                     nn.Flatten(),
                     nn.Linear(outch * 4 * 4, imp_num)]
             self.layer_TF = nn.Sequential(*layer_TF)
-            # self.layer_char = nn.Sequential(*layer_char)
+            self.layer_char = nn.Sequential(*layer_char)
             self.layer_imp = nn.Sequential(*layer_imp)
         else:
             layers = [
@@ -103,7 +103,7 @@ class ConvModuleD(nn.Module):
         if self.final:
             if cond==None:
                 x = self.layers[:3](x)
-                x_TF = None
+                x_TF, x_char = None, None
                 x_imp = torch.squeeze(self.layer_imp(x))
             else:
                 x_ = self.layers[:3](x)
@@ -112,13 +112,13 @@ class ConvModuleD(nn.Module):
                 x_ = torch.cat((x_, cond_), axis=1)
                 x_ = self.layers[3:](x_)
                 x_TF = torch.squeeze(self.layer_TF(x_))
-                # x_char = torch.squeeze(self.layer_char(x_))
+                x_char = torch.squeeze(self.layer_char(x_))
         else:
             x_ = self.layers(x)
             x_TF = x_
-            # x_char = None
+            x_char = None
             x_imp = None
-        return x_TF, x_imp
+        return x_TF, x_char, x_imp
 
 class Generator(nn.Module):
     def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=100, char_num=26, attention=False):
@@ -215,26 +215,22 @@ class Discriminator(nn.Module):
         dropouts = np.array([True, True, True, False, False], dtype=np.bool)
         blocks, fromRGBs = [], []
         for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
-            fromRGBs.append(nn.Conv2d(1+char_num, inch, 1, padding=0))
+            fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))
             blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress))
 
         self.fromRGBs = nn.ModuleList(fromRGBs)
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, x, y_char, res, cond=None):
+    def forward(self, x, res, cond=None):
         # for the highest resolution
         res = min(res, len(self.blocks))
-
-        y_char = y_char.reshape(y_char.size(0), y_char.size(1), 1, 1)
-        y_char = y_char.expand(y_char.size(0), y_char.size(1), x.size(2), x.size(3))
-        x = torch.cat([x, y_char], axis=1)
         # get integer by floor
         eps = 1e-7
         n = max(int(res-eps), 0)
 
         # high resolution
         x_big = self.fromRGBs[n](x)
-        x_big, imp = self.blocks[n](x_big, cond)
+        x_big, char, imp = self.blocks[n](x_big, cond)
 
         if n==0:
             x = x_big
@@ -246,7 +242,7 @@ class Discriminator(nn.Module):
             x = (1-alpha)*x_sml + alpha*x_big
 
         for i in range(n):
-            x, imp = self.blocks[n-1-i](x, cond)
-        return x, imp
+            x, char, imp = self.blocks[n-1-i](x, cond)
+        return x, char, imp
 #
 #

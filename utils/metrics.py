@@ -4,6 +4,7 @@ import os
 import random
 import torch
 import torch.nn as nn
+import gc
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
@@ -248,7 +249,7 @@ class FID(nn.Module):
         return fid_value
 class DataSet(torch.utils.data.Dataset):
     def __init__(self, x, y, transform = None):
-        self.X = x * 255# 入力
+        self.X = x.float()# 入力
         self.Y = y # 出力
         self.transform = transform
     def __len__(self):
@@ -258,7 +259,7 @@ class DataSet(torch.utils.data.Dataset):
         # index番目の入出力ペアを返す
         X = self.X[index]
         if self.transform:
-            X = self.transform(X)/255
+            X = self.transform(X)
         Y = self.Y[index]
         return X, Y
 
@@ -266,9 +267,7 @@ class GAN_train_test(nn.Module):
     def __init__(self, num_class, ID, device="cuda"):
         super(GAN_train_test, self).__init__()
         self.transform = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.Resize(224),
-            transforms.ToTensor()])
+            transforms.Resize(224)])
         self.model = self.build_model(num_class).to(device)
         self.optimizer = optim.Adam(self.model.parameters(), lr=0.01)
         self.num_class = num_class
@@ -293,9 +292,10 @@ class GAN_train_test(nn.Module):
         return train_dataset, test_dataset
 
     def build_model(self, num_class):
-        model = models.resnet18(pretrained=True)
+        model = models.resnet50(pretrained=False)
+        model.conv1 = nn.Conv2d(26, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         model.fc = nn.Sequential(
-            nn.Linear(512, num_class)
+            nn.Linear(2048, num_class)
         )
         return model
 
@@ -303,17 +303,16 @@ class GAN_train_test(nn.Module):
         inputs, target = inputs.to(self.device), target.to(self.device)
         self.optimizer.zero_grad()
         prediction = self.model(inputs)
-        train_map = mean_average_precision(prediction.data.cpu(), target.data.cpu())
         train_loss = self.criterion(prediction.to(self.device), target)
         train_loss.backward()  # 誤差逆伝播
         self.optimizer.step()
-        return train_map, train_loss.item()
+        return torch.sigmoid(prediction), train_loss.item()
 
     def eval(self, inputs, target):
+        inputs, target = inputs.to(self.device), target.to(self.device)
         prediction = self.model(inputs)
-        eval_map = mean_average_precision(prediction.data.cpu(), target.data.cpu())
-        eval_loss = self.criterion(prediction.data.cpu(), target.data.cpu()).item()
-        return eval_map, eval_loss
+        eval_loss = self.criterion(prediction.to(self.device), target)
+        return torch.sigmoid(prediction), eval_loss.item()
 
     def run(self, train_X, train_y, test_X, test_y, pos_weight, epochs, batch_size=64, shuffle=True):
         self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight).to(self.device)
@@ -324,23 +323,33 @@ class GAN_train_test(nn.Module):
             train_dataset = torch.utils.data.Subset(train_dataset, train_indices)
             val_dataset = torch.utils.data.Subset(train_dataset, val_indices)
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
-            val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=shuffle)
-            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
+            val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
             for epoch in range(epochs):
                 self.model.train()
                 train_loss = []
                 train_map = []
                 eval_loss = []
                 eval_map = []
+                out_ = []
+                yy_ = []
                 for x_train, y_train in tqdm(train_loader, total=len(train_loader)):
-                    map, loss = self.train(x_train, y_train)
+                    prediction, loss = self.train(x_train, y_train)
                     train_loss.append(loss)
-                    train_map.append(map)
-                self.model.eval()
-                for x_val, y_val in tqdm(enumerate(val_loader), total=len(val_loader)):
-                    map, loss = self.eval(x_val, y_val)
-                    eval_loss.append(loss)
-                    eval_map.append(map)
+                    out_.append(prediction.data.cpu())
+                    yy_.append(y_train.data.cpu())
+                train_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))
+                out_ = []
+                yy_ = []
+                gc.collect()
+                with torch.no_grad():
+                    self.model.eval()
+                    for x_val, y_val in tqdm(val_loader, total=len(val_loader)):
+                        prediction, loss = self.eval(x_val, y_val)
+                        eval_loss.append(loss)
+                        out_.append(prediction.data.cpu())
+                        yy_.append(y_val.data.cpu())
+                eval_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))
                 total_train_loss = np.asarray(train_loss).mean()
                 total_train_map = np.asarray(train_map).mean()
                 total_val_loss = np.asarray(eval_loss).mean()
@@ -350,6 +359,7 @@ class GAN_train_test(nn.Module):
                 print(f"Epoch: {epoch}, accuracy: {total_val_loss}.")
                 print(f"Epoch: {epoch}, accuracy: {total_val_map}.")
             test_map = []
+            self.model.eval()
             for x_test, y_test in enumerate(test_loader, total=len(test_loader)):
                 test_map, _ = self.eval(x_test, y_test)
                 test_map.append(test_map)
@@ -382,11 +392,13 @@ def mean_average_precision(y_pred, y_true):
         sort_idx = torch.argsort(y_pred[i], descending=True)
         y_true_sorted = y_true[i][sort_idx]
         cumsum = torch.cumsum(y_true_sorted, dim = 0)
-        precision = cumsum / torch.arange(1, 1 + y_true[i].shape[0])
+        precision = cumsum / (torch.arange(1, 1 + y_true[i].shape[0]))
         # 代表点
         mask = (y_true_sorted==1)
         average_precisions.append(precision[mask].mean())
-    return sum(average_precisions)/len(y_true)
+    average_precisions = torch.tensor(average_precisions)
+    average_precisions = average_precisions[average_precisions.isnan()==False]
+    return average_precisions.sum()/(len(average_precisions))
 
 if __name__ == '__main__':
     import sys
@@ -398,9 +410,9 @@ if __name__ == '__main__':
     data = torch.from_numpy(np.array([np.load(d) for d in opts.data]))[:, :26, :, :].float() / 127.5 - 1
     label = opts.impression_word_list
     ID = {key: idx + 1 for idx, key in enumerate(opts.w2v_vocab)}
-    real_img = torch.zeros(size=(len(label), 1, 64, 64))
-    fake_img = torch.zeros(size=(len(label), 1, 64, 64))
+    real_img = torch.zeros(size=(len(label), 26, 64, 64)).float()
+    fake_img = torch.zeros(size=(len(label), 26, 64, 64)).float()
     a = GAN_train_test(len(ID), ID, 'cuda')
     pos_weight = a.caliculate_pos_weight(label)
-    a.run(fake_img.expand(-1, 3, -1, -1), label, real_img.expand(-1, 3, -1, -1), label, pos_weight, 64, batch_size=64,
+    a.run(fake_img.reshape(-1, 26, fake_img.size(2), fake_img.size(3)), label, real_img.reshape(-1, 26, real_img.size(2), real_img.size(3)), label, pos_weight, 64, batch_size=64,
           shuffle=True)

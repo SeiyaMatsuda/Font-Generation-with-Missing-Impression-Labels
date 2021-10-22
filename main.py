@@ -95,6 +95,8 @@ def pgmodel_run(opts):
         G_TF_loss_list.append(check_point["G_epoch_TF_losses"])
         D_cl_loss_list.append(check_point["D_epoch_cl_losses"])
         G_cl_loss_list.append(check_point["G_epoch_cl_losses"])
+        D_ch_loss_list.append(check_point["D_epoch_ch_losses"])
+        G_ch_loss_list.append(check_point["G_epoch_ch_losses"])
         real_acc_list.append(check_point["epoch_real_acc"])
         fake_acc_list.append(check_point["epoch_fake_acc"])
 
@@ -107,6 +109,8 @@ def pgmodel_run(opts):
         LOGGER.info(f'\tLoss: {check_point["D_epoch_TF_losses"]:.4f}(Discriminator_TF)')
         LOGGER.info(f'\tLoss: {check_point["G_epoch_TF_losses"]:.4f}(Generator_TF)')
         LOGGER.info(f'\tLoss: {check_point["D_epoch_cl_losses"]:.4f}(Discriminator_class)')
+        LOGGER.info(f'\tLoss: {check_point["D_epoch_ch_losses"]:.4f}(Discriminator_char)')
+        LOGGER.info(f'\tLoss: {check_point["G_epoch_ch_losses"]:.4f}(Generator_char)')
         LOGGER.info(f'\tLoss: {check_point["G_epoch_cl_losses"]:.4f}(Generator_class)')
         LOGGER.info(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
         LOGGER.info(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
@@ -115,7 +119,6 @@ def pgmodel_run(opts):
             break
 
     writer.close()
-    return D_TF_loss_list, G_TF_loss_list, D_cl_loss_list, G_cl_loss_list
 
 
 

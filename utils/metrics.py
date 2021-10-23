@@ -33,6 +33,47 @@ except ImportError:
     # If not tqdm is not available, provide a mock version of it
     def tqdm(x): return x
 # print(os.listdir("../input"))
+class EarlyStopping:
+    """earlystoppingクラス"""
+
+    def __init__(self, patience=5, verbose=False, path='checkpoint_model.pth'):
+        """引数：最小値の非更新数カウンタ、表示設定、モデル格納path"""
+
+        self.patience = patience    #設定ストップカウンタ
+        self.verbose = verbose      #表示の有無
+        self.counter = 0            #現在のカウンタ値
+        self.best_score = None      #ベストスコア
+        self.early_stop = False     #ストップフラグ
+        self.val_loss_min = np.Inf   #前回のベストスコア記憶用
+        self.path = path             #ベストモデル格納path
+
+    def __call__(self, val_loss, model):
+        """
+        特殊(call)メソッド
+        実際に学習ループ内で最小lossを更新したか否かを計算させる部分
+        """
+        score = -val_loss
+
+        if self.best_score is None:  #1Epoch目の処理
+            self.best_score = score   #1Epoch目はそのままベストスコアとして記録する
+            self.checkpoint(val_loss, model)  #記録後にモデルを保存してスコア表示する
+        elif score < self.best_score:  # ベストスコアを更新できなかった場合
+            self.counter += 1   #ストップカウンタを+1
+            if self.verbose:  #表示を有効にした場合は経過を表示
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')  #現在のカウンタを表示する
+            if self.counter >= self.patience:  #設定カウントを上回ったらストップフラグをTrueに変更
+                self.early_stop = True
+        else:  #ベストスコアを更新した場合
+            self.best_score = score  #ベストスコアを上書き
+            self.checkpoint(val_loss, model)  #モデルを保存してスコア表示
+            self.counter = 0  #ストップカウンタリセット
+
+    def checkpoint(self, val_loss, model):
+        '''ベストスコア更新時に実行されるチェックポイント関数'''
+        if self.verbose:  #表示を有効にした場合は、前回のベストスコアからどれだけ更新したか？を表示
+            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+        torch.save(model.state_dict(), self.path)  #ベストモデルを指定したpathに保存
+        self.val_loss_min = val_loss  #その時のlossを記録する
 
 class InceptionV3(nn.Module):
     """Pretrained InceptionV3 network returning feature maps"""
@@ -264,15 +305,17 @@ class DataSet(torch.utils.data.Dataset):
         return X, Y
 
 class GAN_train_test(nn.Module):
-    def __init__(self, num_class, ID, device="cuda"):
+    def __init__(self, num_class, ID, train_or_test="train", device="cuda"):
         super(GAN_train_test, self).__init__()
         self.transform = transforms.Compose([
             transforms.Resize(224)])
-        self.model = self.build_model(num_class).to(device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.01)
         self.num_class = num_class
+        self.train_or_test = train_or_test
         self.ID = ID
         self.device = device
+        self.save_dir = f"./models/{self.train_or_test}"
+        if not os.path.isdir(self.save_dir):
+            os.makedirs(self.save_dir)
 
     def caliculate_pos_weight(self, label):
         label = self.multi_hot_encoding(label)
@@ -284,7 +327,7 @@ class GAN_train_test(nn.Module):
         label = Multilabel_OneHot(label, len(self.ID), normalize=False)
         return label
 
-    def build_dataset(self, train_x, train_y, test_x, test_y, num_class):
+    def build_dataset(self, train_x, train_y, test_x, test_y):
         train_y = self.multi_hot_encoding(train_y)
         test_y = self.multi_hot_encoding(test_y)
         train_dataset = DataSet(train_x, train_y, self.transform)
@@ -314,23 +357,29 @@ class GAN_train_test(nn.Module):
         eval_loss = self.criterion(prediction.to(self.device), target)
         return torch.sigmoid(prediction), eval_loss.item()
 
-    def run(self, train_X, train_y, test_X, test_y, pos_weight, epochs, batch_size=64, shuffle=True):
+    def run(self, real_img, real_label, fake_img, fake_label, pos_weight, epochs, batch_size=64, shuffle=True, data_pararell=True):
         self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight).to(self.device)
-        train_dataset, test_dataset = self.build_dataset(train_X, train_y, test_X, test_y, num_class=1430)
+        if self.train_or_test=="test":
+            train_dataset, test_dataset = self.build_dataset(real_img, real_label, fake_img, fake_label)
+        elif self.train_or_test=="train":
+            train_dataset, test_dataset = self.build_dataset(fake_img, fake_label, real_img, real_label)
         kf = KFold(n_splits=5)
         CV_score = []
-        for train_indices, val_indices in kf.split(list(range(len(train_dataset)))):
-            train_dataset = torch.utils.data.Subset(train_dataset, train_indices)
+        for i, (train_indices, val_indices) in enumerate(kf.split(list(range(len(train_dataset))))):
+            self.model = self.build_model(self.num_class).to(self.device)
+            self.optimizer = optim.Adam(self.model.parameters(), lr=0.01)
+            earlystopping = EarlyStopping(patience=5, verbose=False, path=os.path.join(self.save_dir, f"'fold{i}.pth'"))
+            if data_pararell:
+                self.model=nn.DataParallel(self.model)
+            tr_dataset = torch.utils.data.Subset(train_dataset, train_indices)
             val_dataset = torch.utils.data.Subset(train_dataset, val_indices)
-            train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+            train_loader = torch.utils.data.DataLoader(tr_dataset, batch_size=batch_size, shuffle=shuffle)
             val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
             test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
             for epoch in range(epochs):
                 self.model.train()
                 train_loss = []
-                train_map = []
                 eval_loss = []
-                eval_map = []
                 out_ = []
                 yy_ = []
                 for x_train, y_train in tqdm(train_loader, total=len(train_loader)):
@@ -354,16 +403,25 @@ class GAN_train_test(nn.Module):
                 total_train_map = np.asarray(train_map).mean()
                 total_val_loss = np.asarray(eval_loss).mean()
                 total_val_map = np.asarray(eval_map).mean()
-                print(f"Epoch: {epoch}, loss: {total_train_loss}.")
-                print(f"Epoch: {epoch}, accuracy: {total_train_map}.")
-                print(f"Epoch: {epoch}, accuracy: {total_val_loss}.")
-                print(f"Epoch: {epoch}, accuracy: {total_val_map}.")
-            test_map = []
-            self.model.eval()
-            for x_test, y_test in enumerate(test_loader, total=len(test_loader)):
-                test_map, _ = self.eval(x_test, y_test)
-                test_map.append(test_map)
+                print(f"Epoch: {epoch}, train_loss: {total_train_loss}.")
+                print(f"Epoch: {epoch}, train_accuracy: {total_train_map}.")
+                print(f"Epoch: {epoch}, val_loss: {total_val_loss}.")
+                print(f"Epoch: {epoch}, val_map: {total_val_map}.")
+                earlystopping(total_val_loss, self.model)  # callメソッド呼び出し
+                if earlystopping.early_stop:  # ストップフラグがTrueの場合、breakでforループを抜ける
+                    print("Early Stopping!")
+                    break
+            out_ = []
+            yy_ = []
+            with torch.no_grad():
+                self.model.eval()
+                for x_test, y_test in test_loader:
+                    pred_test, _ = self.eval(x_test, y_test)
+                    out_.append(pred_test)
+                    yy_.append(y_test)
+            test_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))
             score = np.asarray(test_map).mean()
+            print((f"fold{i}, test_map: {score}."))
             CV_score.append(score)
         return CV_score
 
@@ -392,14 +450,12 @@ def mean_average_precision(y_pred, y_true):
         sort_idx = torch.argsort(y_pred[i], descending=True)
         y_true_sorted = y_true[i][sort_idx]
         cumsum = torch.cumsum(y_true_sorted, dim = 0)
-        precision = cumsum / (torch.arange(1, 1 + y_true[i].shape[0]))
+        precision = cumsum / torch.arange(1, 1 + y_true[i].shape[0])
         # 代表点
         mask = (y_true_sorted==1)
         average_precisions.append(precision[mask].mean())
-    average_precisions = torch.tensor(average_precisions)
-    average_precisions = average_precisions[average_precisions.isnan()==False]
-    return average_precisions.sum()/(len(average_precisions))
-
+    average_precisions = [x for x in average_precisions if np.isnan(x) == False]
+    return sum(average_precisions)/len(y_true)
 if __name__ == '__main__':
     import sys
     from options import get_parser
@@ -412,7 +468,7 @@ if __name__ == '__main__':
     ID = {key: idx + 1 for idx, key in enumerate(opts.w2v_vocab)}
     real_img = torch.zeros(size=(len(label), 26, 64, 64)).float()
     fake_img = torch.zeros(size=(len(label), 26, 64, 64)).float()
-    a = GAN_train_test(len(ID), ID, 'cuda')
+    a = GAN_train_test(len(ID), ID, "train", 'cuda')
     pos_weight = a.caliculate_pos_weight(label)
     a.run(fake_img.reshape(-1, 26, fake_img.size(2), fake_img.size(3)), label, real_img.reshape(-1, 26, real_img.size(2), real_img.size(3)), label, pos_weight, 64, batch_size=64,
           shuffle=True)

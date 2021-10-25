@@ -78,18 +78,18 @@ def pggan_train(param):
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
         else:
             labels_oh_ = labels_oh.to(opts.device)
-        # labels_oh = torch.eye(len(ID))[labels-1].to(opts.device)
         # training Generator
-
         #画像の生成に必要なノイズ作成
         z_img = torch.randn(batch_len, opts.latent_size * 16)
         z_cond = torch.randn(batch_len, opts.num_dimension)
         z = (z_img, z_cond)
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
-        gen_label_ = F.softmax(D_real_class.detach(), dim=1)
+        gen_label_ = F.softmax(D_real_class, dim=1).detach()
         gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
-        # ２つのノイズの結合
+        idx = torch.argsort(torch.argsort(gen_label.detach().data.cpu(), dim=1, descending=True), dim=1)
+        gen_label[idx>50]=0
+        # ２つのノイズの結合`
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
         # Wasserstein lossの計算
@@ -179,11 +179,12 @@ def pggan_train(param):
                    'D_optimizer': D_optimizer.state_dict()}
             torch.save(weight, os.path.join(opts.weight_dir, 'weight_iter_%d.pth' % (iter)))
             if opts.visualize_sc:
-                with torch.inference_mode():
+                with torch.no_grad():
                     test_A = F.adaptive_avg_pool2d(opts.test_A, (img_size, img_size))
                     _, _, test_imp = D_model(test_A.detach(), res)
                     gen_label_ = F.softmax(test_imp.detach(), dim=1)
                     gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
+                    gen_label[idx > 50] = 0
                     test_attr = G_model.module.impression_embedding(gen_label)
                     fig_vsc = opts.vsc.visualize(opts.test_A, test_attr)
                     fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))
@@ -208,6 +209,7 @@ def pggan_train(param):
                    'G_epoch_cl_losses': G_running_cl_loss,
                     'D_epoch_ch_losses': D_running_char_loss,
                     'G_epoch_ch_losses': G_running_char_loss,
+                    'FID': fid_disttance,
                    'epoch_real_acc': real_acc,
                   'epoch_fake_acc':fake_acc,
                    "iter_finish": iter,

@@ -21,7 +21,7 @@ def get_parser():
     parser.add_argument('--d_lr', type=float, default=0.0005)
     parser.add_argument('--attention', dest='attention', action='store_true')
     parser.add_argument('--no_attention', dest='attention', action='store_false')
-    parser.set_defaults(attention=True)
+    parser.set_defaults(attention=False)
     parser.add_argument('--label_transform', dest='label_transform', action='store_true')
     parser.add_argument('--no_label_transform', dest='label_transform', action='store_false')
     parser.set_defaults(label_transform=True)
@@ -34,9 +34,9 @@ def get_parser():
     parser.add_argument('--visualize_sc', type=bool, default=True)
     parser.add_argument('--num_critic', type=int, default=1)
     parser.add_argument('--lambda_gp', type=int, default=10)
-    parser.add_argument('--lambda_class', type=int, default=20)
+    parser.add_argument('--lambda_class', type=int, default=1)
     parser.add_argument('--lambda_drift', type=int, default=0.001)
-    parser.add_argument('--lambda_consistent', type=int, default=1)
+    parser.add_argument('--lambda_consistent', type=int, default=0.001)
     parser.add_argument('--num_iterations', type=int, default=100000)
     parser.add_argument('--num_iterations_decay', type=int, default=100000)
     parser.add_argument('--dt_now', type=str ,default=str(datetime.datetime.now()))
@@ -58,7 +58,5 @@ def get_parser():
         w2v_vocab = pickle_load(os.path.join(path, 'w2v_vocab.pickle'))
         parser.add_argument('--w2v_vocab', type=dict, default=w2v_vocab)
         parser.add_argument('--num_impression_word', type=int, default=len(w2v_vocab))
-    #     parser.add_argument('--correct_impression_word_list', type=list,
-    #                         default=pickle_load(os.path.join(path, 'correct_impression_word_list.pickle')))
     return parser
 

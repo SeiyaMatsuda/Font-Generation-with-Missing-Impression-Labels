@@ -441,6 +441,16 @@ def pseudo_hamming(v1, v2):
     total = np.sum(merged_masked_dist_img)
     end_time =time.time()
     return total
+
+def ranking_acc(pred, true):
+    pred_rank = np.argsort(-pred)
+    result = []
+    for i in tqdm.tqdm(range(1574), total = 1574):
+        ranking = pred_rank[:,:i+1]
+        target = np.tile(true, (i+1,1)).T
+        result.append(((ranking == target).sum(1)>0).sum()/ranking.shape[0])
+    return result
+
 def mean_average_precision(y_pred, y_true):
     average_precisions = []
     # クラス単位でAPを計算

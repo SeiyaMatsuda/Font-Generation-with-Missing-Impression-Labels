@@ -21,7 +21,7 @@ def visualizer(path, G_model, z, char_num, label, res, device, nibuchan):
     z_cond = tile(z_cond, 0, char_num).repeat(label_shape[0], 1).to(device)
     label = tile(label, 0, char_num * z_shape[0]).to(device)
     z = (z_img, z_cond)
-    with torch.inference_mode():
+    with torch.no_grad():
         samples = G_model(z, char, label, res)[0].data.cpu()
         samples = F.interpolate(samples, (128, 128), mode='nearest')
         samples = samples/2 + 0.5

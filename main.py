@@ -64,6 +64,7 @@ def pgmodel_run(opts):
     G_cl_loss_list = []
     real_acc_list = []
     fake_acc_list = []
+    FID_score = []
 
     transform = Transform()
     #training param
@@ -99,6 +100,7 @@ def pgmodel_run(opts):
         G_ch_loss_list.append(check_point["G_epoch_ch_losses"])
         real_acc_list.append(check_point["epoch_real_acc"])
         fake_acc_list.append(check_point["epoch_fake_acc"])
+        FID_score.append(check_point["FID"])
 
         secs = int(time.time() - start_time)
         mins = secs / 60
@@ -108,12 +110,13 @@ def pgmodel_run(opts):
         LOGGER.info("所要時間 %d 分 %d 秒" % (mins, secs))
         LOGGER.info(f'\tLoss: {check_point["D_epoch_TF_losses"]:.4f}(Discriminator_TF)')
         LOGGER.info(f'\tLoss: {check_point["G_epoch_TF_losses"]:.4f}(Generator_TF)')
-        LOGGER.info(f'\tLoss: {check_point["D_epoch_cl_losses"]:.4f}(Discriminator_class)')
         LOGGER.info(f'\tLoss: {check_point["D_epoch_ch_losses"]:.4f}(Discriminator_char)')
         LOGGER.info(f'\tLoss: {check_point["G_epoch_ch_losses"]:.4f}(Generator_char)')
+        LOGGER.info(f'\tLoss: {check_point["D_epoch_cl_losses"]:.4f}(Discriminator_class)')
         LOGGER.info(f'\tLoss: {check_point["G_epoch_cl_losses"]:.4f}(Generator_class)')
         LOGGER.info(f'\tacc: {check_point["epoch_real_acc"]:.4f}(real_acc)')
         LOGGER.info(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
+        LOGGER.info(f'\tFID: {check_point["FID"]:.4f}(FID)')
        # モデル保存のためのcheckpointファイルを作成
         if iter_start >= 100000:
             break

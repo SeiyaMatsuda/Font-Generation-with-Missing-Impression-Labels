@@ -70,10 +70,6 @@ def pgmodel_run(opts):
     #training param
     iter_start = opts.start_iterations
     writer = SummaryWriter(log_dir=opts.learning_log_dir)
-    dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
-                              transform=transform)
-    bs = opts.batch_size
-    pos_weight = dataset.pos_weight
     # visualize semantic_condition
     if opts.visualize_sc:
         opts.vsc = visualize_semantic_condition(weights)
@@ -84,11 +80,15 @@ def pgmodel_run(opts):
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
+        dataset = Myfont_dataset3(data, label, ID, char_num=opts.char_num,
+                                  transform=transform)
+        bs = opts.batch_size
+        # pos_weight = dataset.pos_weight
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid,
-                 'DataLoader': DataLoader, 'co_matrix': co_matrix, 'pos_weight': pos_weight,
+                 'DataLoader': DataLoader, 'co_matrix': co_matrix,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]

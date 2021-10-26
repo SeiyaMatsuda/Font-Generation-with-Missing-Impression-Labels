@@ -142,7 +142,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(DCAN(outch, num_dimension, 4 - idx))
-        self.emb_layer = ImpEmbedding(weight, sum_weight=False, deepsets=False)
+        self.emb_layer = ImpEmbedding(weight, deepsets=False)
         self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)

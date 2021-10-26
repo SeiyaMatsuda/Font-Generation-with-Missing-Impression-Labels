@@ -36,7 +36,7 @@ class DeepSets(nn.Module):
 
     def forward(self, x):
         phi_output = self.phi(x)
-        sum_output = phi_output.mean(1)
+        sum_output = phi_output.sum(1)
         rho_output = self.rho(sum_output)
         return rho_output
 

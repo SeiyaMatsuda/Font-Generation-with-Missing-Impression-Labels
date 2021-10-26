@@ -91,10 +91,10 @@ def split_list(l, n):
         yield l[idx:idx + n]
 
 def missing2clean(prob):
-    # sampler = bernoulli(prob)
-    # clean_multihot = sampler.sample()
-    clean_multihot = bernoulli(prob)
-    return clean_multihot
+    sampler = torch.distributions.categorical.Categorical(prob)
+    clean_label = sampler.sample()
+    clean_hot = torch.eye(prob.size(1))[clean_label]
+    return clean_hot
 
 # 共起行列作成関数の実装
 def create_co_matrix(label, ID):

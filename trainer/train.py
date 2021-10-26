@@ -21,9 +21,7 @@ def pggan_train(param):
     D_model = param["D_model"]
     fid = param['fid']
     DataLoader = param["DataLoader"]
-    # label_weight = param['label_weight']
     co_matrix = param['co_matrix']
-    pos_weight = param['pos_weight']
     ID = param['ID']
     test_z = param["z"]
     G_optimizer = param["G_optimizer"]
@@ -54,7 +52,8 @@ def pggan_train(param):
     ca_loss = CALoss()
     mse_loss = torch.nn.SmoothL1Loss().to(opts.device)
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
+        # real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
+        real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
         #ステップの定義
         res = iter / opts.res_step
         # get integer by floor
@@ -73,9 +72,11 @@ def pggan_train(param):
         # 文字クラスのone-hotベクトル化
         char_class_oh = torch.eye(opts.char_num)[char_class].to(opts.device)
         # 印象語のベクトル化
-        labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
+        # labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
+        labels_oh = torch.eye(len(ID))[labels-1]
         if opts.label_transform:
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
+            # labels_oh_ = missing2clean(labels_oh_).to(opts.device)
         else:
             labels_oh_ = labels_oh.to(opts.device)
         # training Generator
@@ -86,9 +87,8 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
         gen_label_ = F.softmax(D_real_class, dim=1).detach()
-        gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
-        idx = torch.argsort(torch.argsort(gen_label.detach().data.cpu(), dim=1, descending=True), dim=1)
-        gen_label[idx>50]=0
+        gen_label = gen_label_
+        # gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合`
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
@@ -184,7 +184,6 @@ def pggan_train(param):
                     _, _, test_imp = D_model(test_A.detach(), res)
                     gen_label_ = F.softmax(test_imp.detach(), dim=1)
                     gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
-                    gen_label[idx > 50] = 0
                     test_attr = G_model.module.impression_embedding(gen_label)
                     fig_vsc = opts.vsc.visualize(opts.test_A, test_attr)
                     fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))

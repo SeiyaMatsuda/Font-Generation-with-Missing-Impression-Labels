@@ -146,19 +146,14 @@ class ResidualBlock(nn.Module):
         return shortcut + output
 
 class ImpEmbedding(nn.Module):
-    def __init__(self, weight, sum_weight=False, deepsets=False,  num_dimension=300, residual_num=0, required_grad = False):
+    def __init__(self, weight, deepsets=False,  num_dimension=300, residual_num=0, required_grad = False):
         super(ImpEmbedding, self).__init__()
         self.weight = weight
         self.embed = nn.Embedding(self.weight.shape[0], self.weight.shape[1])
         self.embed.weight = nn.Parameter(torch.from_numpy(self.weight))
         self.shape = (self.weight.shape[0], self.weight.shape[1])
-        self.sum_weight = sum_weight
         self.deepsets = deepsets
-        print('deepsets:{}::::sum_weight:{}'.format(self.deepsets, self.sum_weight))
-        if sum_weight:
-            self.fc =nn.Sequential(
-                 nn.Linear(self.weight.shape[0], 1),
-                 nn.LeakyReLU(0.2, inplace=True))
+        print('deepsets:{}'.format(self.deepsets))
         if deepsets:
             self.sets_layer = DeepSets(num_dimension, num_dimension)
         if not required_grad:
@@ -173,16 +168,11 @@ class ImpEmbedding(nn.Module):
             attr = torch.mul(self.embed.weight.data, labels)
         else:
             attr = labels
-        if self.sum_weight:
-            attr = self.fc(attr.permute(0, 2, 1))
-            attr = attr.permute(0, 2, 1)
-            attr = attr.sum(1)
-        elif self.deepsets:
+        if self.deepsets:
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)
-            attr = attr/(torch.linalg.norm(attr, dim=1).unsqueeze(1) + 1e-7)
-        attr = self.res_block(attr)
+        attr = attr/(torch.linalg.norm(attr, dim=1).unsqueeze(1) + 1e-7)
         return attr
 class Conditioning_Augumentation(nn.Module):
     def __init__(self, input_dim, output_dim):

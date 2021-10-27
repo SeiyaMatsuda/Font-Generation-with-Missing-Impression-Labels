@@ -107,14 +107,14 @@ class KlLoss(nn.Module):
         super(KlLoss, self).__init__()
         self.activation = activation
     def forward(self, input, target):
-        entropy = -(target[target != 0] * target[target != 0].log()).sum()
+        entropy = (target[target != 0] * target[target != 0].log()).sum()
         if self.activation == 'softmax':
-            cross_entropy = -(target * F.log_softmax(input, dim=1)).sum()
+            cross_entropy = (target * F.log_softmax(input, dim=1)).sum()
         elif self.activation == 'sigmoid':
-            cross_entropy = -(target * F.logsigmoid(input)).sum()
+            cross_entropy = (target * F.logsigmoid(input)).sum()
         else:
-            cross_entropy = -(target * input).sum()
-        return (cross_entropy - entropy) / (input.size(0))
+            cross_entropy = (target * input).sum()
+        return (entropy - cross_entropy) / (input.size(0))
 
 class CALoss(nn.Module):
     def __init__(self):

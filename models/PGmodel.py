@@ -74,9 +74,8 @@ class ConvModuleD(nn.Module):
             layer_char = [nn.Conv2d(outch, char_num, 4, padding=0)]
             if compress:
                 layer_imp = [
-                    nn.AdaptiveAvgPool2d(1),
                     nn.Flatten(),
-                    nn.Linear(outch, 300),
+                    nn.Linear(outch * 4 * 4, 300),
                     nn.LeakyReLU(0.2, inplace=True),
                     nn.Linear(300, imp_num)]
             else:

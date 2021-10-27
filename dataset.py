@@ -199,7 +199,7 @@ class Myfont_dataset3(torch.utils.data.Dataset):
             self.label = key
             self.embed_label = value
             idx = [idx for idx, ll in enumerate(label) if key in ll]
-            idx = random.choices(idx, k=10)
+            idx = random.choices(idx, k=50)
             for i in idx:
                 for j in range(char_num):
                     self.data = data[i][j].astype(np.float32).reshape(-1, self.img_size, self.img_size)

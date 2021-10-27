@@ -1,3 +1,5 @@
+import gc
+from kornia.filters.gaussian import gaussian_blur2d
 from utils.mylib import *
 from utils.loss import *
 from utils.visualize import *
@@ -76,7 +78,6 @@ def pggan_train(param):
         labels_oh = torch.eye(len(ID))[labels-1]
         if opts.label_transform:
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
-            # labels_oh_ = missing2clean(labels_oh_).to(opts.device)
         else:
             labels_oh_ = labels_oh.to(opts.device)
         # training Generator
@@ -91,6 +92,8 @@ def pggan_train(param):
         # gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合`
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
+        if opts.blur:
+            fake_img = gaussian_blur2d(fake_img , (3, 3), (1.5, 1.5))
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
         # Wasserstein lossの計算
         G_TF_loss = -torch.mean(D_fake_TF)
@@ -105,6 +108,7 @@ def pggan_train(param):
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()
+        gc.collect()
         G_running_TF_loss += G_TF_loss.item()
         G_running_cl_loss += G_class_loss.item()
         G_running_char_loss += G_char_loss.item()
@@ -133,7 +137,7 @@ def pggan_train(param):
             #Wasserstein lossの計算
             D_TF_loss = D_fake_loss + D_real_loss + opts.lambda_gp * gp_loss
             # 文字クラス分類のロス
-            D_char_loss = (kl_loss(D_real_char, char_class_oh) + kl_loss(D_fake_char, char_class_oh)) / 2
+            D_char_loss = kl_loss(D_real_char, char_class_oh)
             # 印象語分類のロス
             D_class_loss = kl_loss(D_real_class, labels_oh_)
             D_loss = D_TF_loss + D_class_loss + D_char_loss + loss_drift * opts.lambda_drift

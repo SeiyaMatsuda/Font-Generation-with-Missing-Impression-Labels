@@ -26,9 +26,9 @@ class Font_Generator:
         char_num = len(alpha_num)
         char_class = torch.eye(26)[torch.tensor(alpha_num)].repeat(generate_num, 1)
         z_img = torch.randn(generate_num, 256 * 4 * 4)
-        z_cond = torch.randn(1, 100)
+        z_cond = torch.randn(generate_num, 100)
         z_img = tile(z_img, 0, char_num).to(device)
-        z_cond = tile(z_cond, 0, generate_num * char_num).to(device)
+        z_cond = tile(z_cond, 0, char_num).to(device)
         label = [[self.ID[token] for token in impression_word]]
         label = Multilabel_OneHot(label, len(self.ID), normalize=True)
         label = torch.tensor(label).repeat(char_num * generate_num, 1).to(self.device)

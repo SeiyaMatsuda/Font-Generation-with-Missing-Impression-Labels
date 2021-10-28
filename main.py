@@ -77,15 +77,15 @@ def pgmodel_run(opts):
         A = data[idx][:, 0, :, :]
         opts.test_char = torch.eye(opts.char_num)[0].unsqueeze(0).repeat(512, 1)
         opts.test_A = transform(torch.from_numpy(A.astype(np.float32)).clone().unsqueeze(1))
+    dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
+                              transform=transform)
+    bs = opts.batch_size
+    # pos_weight = dataset.pos_weight
+    DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+                                             collate_fn=collate_fn, drop_last=True)
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
-        dataset = Myfont_dataset3(data, label, ID, char_num=opts.char_num,
-                                  transform=transform)
-        bs = opts.batch_size
-        # pos_weight = dataset.pos_weight
-        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                                 collate_fn=collate_fn, drop_last=True)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid,
                  'DataLoader': DataLoader, 'co_matrix': co_matrix,

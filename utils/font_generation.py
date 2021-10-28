@@ -20,13 +20,15 @@ class Font_Generator:
         self.G_model.load_state_dict(torch.load(path)["G_net"], strict=False)
         self.device = device
         self.alpha2num = lambda c: ord(c) -ord('A')
+        self.z_img = torch.randn(1000, 256 * 4 * 4)
+        self.z_cond = torch.randn(1000, 100)
     def generate_from_impression(self, generate_num, impression_word, alphabet="ABCHERONS"):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))
         char_num = len(alpha_num)
         char_class = torch.eye(26)[torch.tensor(alpha_num)].repeat(generate_num, 1)
-        z_img = torch.randn(generate_num, 256 * 4 * 4)
-        z_cond = torch.randn(generate_num, 100)
+        z_img =self.z_img[:generate_num]
+        z_cond = self.z_cond[:generate_num]
         z_img = tile(z_img, 0, char_num).to(device)
         z_cond = tile(z_cond, 0, char_num).to(device)
         label = [[self.ID[token] for token in impression_word]]

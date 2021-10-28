@@ -243,5 +243,90 @@ class Discriminator(nn.Module):
         for i in range(n):
             x, char, imp = self.blocks[n-1-i](x, cond)
         return x, char, imp
-#
-#
+
+
+class ConsistencyConvModuleD(nn.Module):
+    '''
+    Args:
+        out_size: (int), Ex.: 16 (resolution)
+        inch: (int),  Ex.: 256
+        outch: (int), Ex.: 128
+    '''
+
+    def __init__(self, out_size, inch, outch, final=False, compress=False, dropout=False):
+        super().__init__()
+        self.final = final
+        if final:
+            layers = [
+                Minibatch_std(),  # final block only
+                Conv2d(inch + 1, outch, 3, padding=1),
+                nn.LeakyReLU(0.2, inplace=True),
+                Conv2d(outch, outch, 3, padding=1),
+                nn.LeakyReLU(0.2, inplace=True),
+                nn.Conv2d(outch, 1, 4, padding=0)
+            ]
+            if dropout:
+                layers.insert(4, nn.Dropout2d(0.5))
+            self.layers = nn.Sequential(layers)
+
+        else:
+            layers = [
+                Conv2d(inch, outch, 3, padding=1),
+                nn.LeakyReLU(0.2, inplace=True),
+                Conv2d(outch, outch, 3, padding=1),
+                nn.LeakyReLU(0.2, inplace=True),
+                nn.AdaptiveAvgPool2d((out_size, out_size)),
+            ]
+            if dropout==True:
+                layers.insert(3, nn.Dropout2d(0.5))
+
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x):
+        x = self.layers(x)
+        return x
+
+class ConsistencyDiscriminator(nn.Module):
+    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True, style_num = 4):
+        super().__init__()
+
+        self.minbatch_std = Minibatch_std()
+
+        # conv modules & toRGBs
+        scale = 1
+        inchs = np.array([256, 128, 64, 32, 16], dtype=np.uint32)*scale
+        outchs  = np.array([512, 256, 128, 64, 32], dtype=np.uint32)*scale
+        sizes = np.array([1, 4, 8, 16, 32], dtype=np.uint32)
+        finals = np.array([True, False, False, False, False], dtype=np.bool)
+        dropouts = np.array([True, True, True, False, False], dtype=np.bool)
+        blocks, fromSTYLEs= [], []
+        for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
+            fromSTYLEs.append(nn.Conv2d(style_num + 1, inch, 1, padding=0))
+            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress))
+
+        self.fromSTYLEs = nn.ModuleList(fromSTYLEs)
+        self.blocks = nn.ModuleList(blocks)
+
+    def forward(self, x, style_image, res, cond=None):
+        # for the highest resolution
+        res = min(res, len(self.blocks))
+        # get integer by floor
+        eps = 1e-7
+        n = max(int(res-eps), 0)
+
+        # high resolution
+        x_big = self.fromSTYLEs[n](x)
+        x_big, char, imp = self.blocks[n](x_big)
+
+        if n==0:
+            x = x_big
+        else:
+            # low resolution
+            x_sml = F.adaptive_avg_pool2d(x, x_big.shape[2:4])
+            x_sml = self.fromSTYLEs[n - 1](x_sml)
+            alpha = res - int(res-eps)
+            x = (1-alpha)*x_sml + alpha*x_big
+
+        for i in range(n):
+            x, char, imp = self.blocks[n-1-i](x)
+        return x, char, imp

@@ -24,13 +24,13 @@ def get_parser():
     parser.set_defaults(attention=False)
     parser.add_argument('--label_transform', dest='label_transform', action='store_true')
     parser.add_argument('--no_label_transform', dest='label_transform', action='store_false')
-    parser.set_defaults(label_transform=False)
+    parser.set_defaults(label_transform=True)
     parser.add_argument('--label_compress', dest='label_compress', action='store_true')
     parser.add_argument('--no_label_compress', dest='label_compress', action='store_false')
     parser.set_defaults(label_compress=True)
     parser.add_argument('--consistency_loss', dest='consistency_loss', action='store_true')
     parser.add_argument('--no_consistency_loss', dest='consistency_loss', action='store_false')
-    parser.set_defaults(consistency_loss=True)
+    parser.set_defaults(consistency_loss=False)
     parser.add_argument('--blur', dest='blur', action='store_true')
     parser.add_argument('--no_blur', dest='blur', action='store_false')
     parser.set_defaults(blur=False)
@@ -43,7 +43,7 @@ def get_parser():
     parser.add_argument('--num_iterations', type=int, default=100000)
     parser.add_argument('--num_iterations_decay', type=int, default=100000)
     parser.add_argument('--dt_now', type=str ,default=str(datetime.datetime.now()))
-    parser.add_argument('--nibuchan', type=str, default=False)
+    parser.add_argument('--nibuchan', type=str, default=True)
     cuda = True if torch.cuda.is_available() else False
     parser.add_argument('--device', type=str, default=torch.device("cuda" if cuda else "cpu"))
     parser.add_argument('--Tensor', default=torch.cuda.FloatTensor if cuda else torch.FloatTensor)
@@ -52,7 +52,7 @@ def get_parser():
     parser.add_argument('--out_res', type=int, default=64, help='The resolution of final output image')
     parser.add_argument('--resume', type=int, default=0, help='continues from epoch number')
     parser.add_argument('--data_path', type=str, default='../Myfont/dataset', help='Path of the directory where the original data is stored')
-    path = os.path.join(os.path.dirname(__file__), 'dataset')
+    path = os.path.join(os.path.dirname(__file__), '../dataset')
     if os.path.isdir(path):
         sortsecond = lambda a: os.path.splitext(os.path.basename(a))[0]
         data = sorted(glob.glob(os.path.join(path, 'images', '*.npy')),key=sortsecond)

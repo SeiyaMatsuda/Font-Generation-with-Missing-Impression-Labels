@@ -54,8 +54,8 @@ def pggan_train(param):
     ca_loss = CALoss()
     mse_loss = torch.nn.SmoothL1Loss().to(opts.device)
     for batch_idx, samples in enumerate(databar):
-        # real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
-        real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
+        real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
+        # real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
         #ステップの定義
         res = iter / opts.res_step
         # get integer by floor
@@ -74,8 +74,8 @@ def pggan_train(param):
         # 文字クラスのone-hotベクトル化
         char_class_oh = torch.eye(opts.char_num)[char_class].to(opts.device)
         # 印象語のベクトル化
-        # labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
-        labels_oh = torch.eye(len(ID))[labels-1]
+        labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
+        # labels_oh = torch.eye(len(ID))[labels-1]
         if opts.label_transform:
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
         else:
@@ -87,9 +87,7 @@ def pggan_train(param):
         z = (z_img, z_cond)
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
-        gen_label_ = F.softmax(D_real_class, dim=1).detach()
-        gen_label = gen_label_
-        # gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
+        gen_label = F.softmax(D_real_class, dim=1).detach()
         # ２つのノイズの結合`
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         if opts.blur:
@@ -98,7 +96,7 @@ def pggan_train(param):
         # Wasserstein lossの計算
         G_TF_loss = -torch.mean(D_fake_TF)
         # 印象語分類のロス
-        G_class_loss = kl_loss(D_fake_class, gen_label_)
+        G_class_loss = kl_loss(D_fake_class, gen_label)
         # 文字クラス分類のロス
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         G_kl_loss = ca_loss(mu, logvar)

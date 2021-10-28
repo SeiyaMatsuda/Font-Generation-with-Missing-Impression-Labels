@@ -53,8 +53,7 @@ class visualize_semantic_condition:
     def __init__(self, weight):
         self.pca = PCA(n_components=2)
         weight = torch.tensor(weight)
-        weights_ = weight / (torch.linalg.norm(weight, dim=1).unsqueeze(1) + 1e-7)
-        self.x_, self.y_ = self.pca.fit_transform(weights_).T
+        self.x_, self.y_ = self.pca.fit_transform(weight).T
     def visualize(self, image, attr):
         x, y = self.pca.transform(attr.data.cpu()).T
         fig, ax = plt.subplots(figsize=(20.0, 20.0))

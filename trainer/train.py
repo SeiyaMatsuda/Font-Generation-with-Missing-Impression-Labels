@@ -184,8 +184,7 @@ def pggan_train(param):
                 with torch.no_grad():
                     test_A = F.adaptive_avg_pool2d(opts.test_A, (img_size, img_size))
                     _, _, test_imp = D_model(test_A.detach(), res)
-                    gen_label_ = F.softmax(test_imp.detach(), dim=1)
-                    gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
+                    gen_label = F.softmax(test_imp.detach(), dim=1)
                     test_attr = G_model.module.impression_embedding(gen_label)
                     fig_vsc = opts.vsc.visualize(opts.test_A, test_attr)
                     fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))

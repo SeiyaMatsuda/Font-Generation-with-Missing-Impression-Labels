@@ -52,7 +52,7 @@ def get_parser():
     parser.add_argument('--out_res', type=int, default=64, help='The resolution of final output image')
     parser.add_argument('--resume', type=int, default=0, help='continues from epoch number')
     parser.add_argument('--data_path', type=str, default='../Myfont/dataset', help='Path of the directory where the original data is stored')
-    path = os.path.join(os.path.dirname(__file__), '../dataset')
+    path = os.path.join(os.path.dirname(__file__), 'dataset')
     if os.path.isdir(path):
         sortsecond = lambda a: os.path.splitext(os.path.basename(a))[0]
         data = sorted(glob.glob(os.path.join(path, 'images', '*.npy')),key=sortsecond)

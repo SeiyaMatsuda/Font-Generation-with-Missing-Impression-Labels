@@ -1,9 +1,8 @@
 from trainer.train import pggan_train
-# from models.DCmodel import ACGenerator, ACDiscriminator, CGenerator, CDiscriminator
 from utils.mylib import *
 from utils.logger import init_logger
 from dataset import *
-from models.PGmodel import Generator, Discriminator
+from models.PGmodel import Generator, Discriminator, StyleDiscriminator
 from torch.utils.tensorboard import SummaryWriter
 from utils.metrics import FID
 from  utils.visualize import visualize_semantic_condition
@@ -40,6 +39,10 @@ def pgmodel_run(opts):
     D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress).to(opts.device)
     G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
     G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
+    if opts.style_discriminator:
+        D_model_style = StyleDiscriminator(style_num=4).to(opts.device)
+    else:
+        D_model_style = None
     fid = FID()
     LOGGER.info(f"================Generator================")
     LOGGER.info(f"{G_model}")
@@ -51,9 +54,13 @@ def pgmodel_run(opts):
         D_model = nn.DataParallel(D_model)
         G_model = nn.DataParallel(G_model)
         G_model_mavg = nn.DataParallel(G_model_mavg)
-
+        if opts.style_discriminator:
+            D_model_style = nn.DataParallel(D_model_style)
     # optimizerの定義
-    D_optimizer = torch.optim.Adam(D_model.parameters(), lr=opts.g_lr, betas=(0, 0.99))
+    if opts.style_discriminator:
+        D_optimizer = torch.optim.Adam([{'params': D_model.parameters(), 'lr': opts.d_lr, "betas":(0, 0.99)}, {'params': D_model_style.parameters(), 'lr': opts.d_lr, "betas":(0, 0.99)}])
+    else:
+        D_optimizer = torch.optim.Adam(D_model.parameters(), lr=opts.d_lr, betas=(0, 0.99))
     G_optimizer = torch.optim.Adam(G_model.parameters(), lr=opts.g_lr, betas=(0, 0.99))
 
     D_TF_loss_list = []
@@ -86,7 +93,7 @@ def pgmodel_run(opts):
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
-        param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model,
+        param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'D_model_style':D_model_style,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid,
                  'DataLoader': DataLoader, 'co_matrix': co_matrix,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
@@ -151,6 +158,7 @@ if __name__=="__main__":
                 f"label_transform:{opts.label_transform}\n"
                 f"label_compress:{opts.label_compress}\n"
                 f"consistency_loss:{opts.consistency_loss}\n"
+                f"style_discriminator:{opts.style_discriminator}\n"
                 f"img_size:{opts.img_size}\n"
                 f"w2v_dimension:{opts.w2v_dimension}\n"
                 f"num_dimension:{opts.num_dimension}\n"

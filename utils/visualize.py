@@ -54,11 +54,19 @@ class visualize_semantic_condition:
         self.pca = PCA(n_components=2)
         weight = torch.tensor(weight)
         self.x_, self.y_ = self.pca.fit_transform(weight).T
-    def visualize(self, image, attr):
+    def visualize_sc_w2v(self, image, attr):
         x, y = self.pca.transform(attr.data.cpu()).T
         fig, ax = plt.subplots(figsize=(20.0, 20.0))
         imscatter(x, y, 255 - image[:, 0, :, :].to('cpu').detach().numpy().copy(), ax=ax,  zoom=.25)
         ax.plot(x, y, 'o', alpha=0)
         ax.autoscale()
         ax.plot(self.x_, self.y_, 'o', color='green', markersize=10,  alpha=0.4)
+        return fig
+    def visualize_sc(self, attr1, attr2):
+        x1, y1 = self.pca.fit_transform(attr1.data.cpu()).T
+        x2, y2 = self.pca.transform(attr2.data.cpu()).T
+        fig, ax = plt.subplots(figsize=(20.0, 20.0))
+        ax.plot(x1, y1, 'o', alpha=0, color='green', markersize=10,)
+        ax.plot(x2, y2, 'o', alpha=0, color='green', markersize=10,)
+        ax.autoscale()
         return fig

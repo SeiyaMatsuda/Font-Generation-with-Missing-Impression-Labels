@@ -172,7 +172,7 @@ class ImpEmbedding(nn.Module):
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)
-        # attr = attr/(torch.linalg.norm(attr, dim=1).unsqueeze(1) + 1e-7)
+            # attr = attr/(torch.linalg.norm(attr, dim=1).unsqueeze(1) + 1e-7)
         return attr
 class Conditioning_Augumentation(nn.Module):
     def __init__(self, input_dim, output_dim):

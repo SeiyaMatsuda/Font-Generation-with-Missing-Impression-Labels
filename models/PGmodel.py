@@ -245,7 +245,7 @@ class Discriminator(nn.Module):
         return x, char, imp
 
 
-class ConsistencyConvModuleD(nn.Module):
+class StyleConvModuleD(nn.Module):
     '''
     Args:
         out_size: (int), Ex.: 16 (resolution)
@@ -253,7 +253,7 @@ class ConsistencyConvModuleD(nn.Module):
         outch: (int), Ex.: 128
     '''
 
-    def __init__(self, out_size, inch, outch, final=False, compress=False, dropout=False):
+    def __init__(self, out_size, inch, outch, final=False, dropout=False):
         super().__init__()
         self.final = final
         if final:
@@ -267,7 +267,7 @@ class ConsistencyConvModuleD(nn.Module):
             ]
             if dropout:
                 layers.insert(4, nn.Dropout2d(0.5))
-            self.layers = nn.Sequential(layers)
+            self.layers = nn.Sequential(*layers)
 
         else:
             layers = [
@@ -286,8 +286,8 @@ class ConsistencyConvModuleD(nn.Module):
         x = self.layers(x)
         return x
 
-class ConsistencyDiscriminator(nn.Module):
-    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True, style_num = 4):
+class StyleDiscriminator(nn.Module):
+    def __init__(self, style_num=4):
         super().__init__()
 
         self.minbatch_std = Minibatch_std()
@@ -299,15 +299,16 @@ class ConsistencyDiscriminator(nn.Module):
         sizes = np.array([1, 4, 8, 16, 32], dtype=np.uint32)
         finals = np.array([True, False, False, False, False], dtype=np.bool)
         dropouts = np.array([True, True, True, False, False], dtype=np.bool)
-        blocks, fromSTYLEs= [], []
+        blocks, fromSTYLEs = [], []
         for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
             fromSTYLEs.append(nn.Conv2d(style_num + 1, inch, 1, padding=0))
-            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress))
+            blocks.append(StyleConvModuleD(s, inch, outch, final=final, dropout=dropout))
 
         self.fromSTYLEs = nn.ModuleList(fromSTYLEs)
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, x, style_image, res, cond=None):
+    def forward(self, x, style_image, res):
+        x = torch.cat([x, style_image], dim=1)
         # for the highest resolution
         res = min(res, len(self.blocks))
         # get integer by floor
@@ -316,7 +317,7 @@ class ConsistencyDiscriminator(nn.Module):
 
         # high resolution
         x_big = self.fromSTYLEs[n](x)
-        x_big, char, imp = self.blocks[n](x_big)
+        x_big = self.blocks[n](x_big)
 
         if n==0:
             x = x_big
@@ -328,5 +329,5 @@ class ConsistencyDiscriminator(nn.Module):
             x = (1-alpha)*x_sml + alpha*x_big
 
         for i in range(n):
-            x, char, imp = self.blocks[n-1-i](x)
-        return x, char, imp
+            x = self.blocks[n-1-i](x)
+        return torch.sigmoid(x)

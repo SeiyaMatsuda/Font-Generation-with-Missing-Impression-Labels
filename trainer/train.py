@@ -21,6 +21,7 @@ def pggan_train(param):
     opts = param["opts"]
     G_model = param["G_model"]
     D_model = param["D_model"]
+    D_model_style = param["D_model_style"]
     fid = param['fid']
     DataLoader = param["DataLoader"]
     co_matrix = param['co_matrix']
@@ -53,8 +54,9 @@ def pggan_train(param):
     kl_loss = KlLoss(activation='softmax').to(opts.device)
     ca_loss = CALoss()
     mse_loss = torch.nn.SmoothL1Loss().to(opts.device)
+    bce_loss = nn.BCELoss().to(opts.device)
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target']
+        real_img, char_class, labels, style_img = samples['img_target'], samples['charclass_target'], samples['multi_embed_label_target'], samples['styles_target']
         # real_img, char_class, labels = samples['img'], samples['charclass'], samples['embed_label']
         #ステップの定義
         res = iter / opts.res_step
@@ -65,7 +67,6 @@ def pggan_train(param):
         n_layer = max(int(n - eps), 0)
         img_size = G_model.module.size[n_layer]
         real_img = F.adaptive_avg_pool2d(real_img, (img_size, img_size))
-
         # バッチの長さを定義
         batch_len = real_img.size(0)
         #デバイスの移
@@ -75,7 +76,6 @@ def pggan_train(param):
         char_class_oh = torch.eye(opts.char_num)[char_class].to(opts.device)
         # 印象語のベクトル化
         labels_oh = Multilabel_OneHot(labels, len(ID), normalize=True)
-        # labels_oh = torch.eye(len(ID))[labels-1]
         if opts.label_transform:
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
         else:
@@ -90,8 +90,6 @@ def pggan_train(param):
         gen_label = F.softmax(D_real_class, dim=1).detach()
         # ２つのノイズの結合`
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
-        if opts.blur:
-            fake_img = gaussian_blur2d(fake_img , (3, 3), (1.5, 1.5))
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
         # Wasserstein lossの計算
         G_TF_loss = -torch.mean(D_fake_TF)
@@ -101,8 +99,15 @@ def pggan_train(param):
         G_char_loss = kl_loss(D_fake_char, char_class_oh)
         G_kl_loss = ca_loss(mu, logvar)
         # mode seeking lossの算出
-
         G_loss = G_TF_loss + G_char_loss + G_class_loss * opts.lambda_class + G_kl_loss
+        if opts.style_discriminator:
+            ones = torch.ones(batch_len, 1, 1, 1).to(opts.device)
+            zeros = torch.zeros(batch_len, 1, 1, 1).to(opts.device)
+            style_img = F.adaptive_avg_pool2d(style_img, (img_size, img_size))
+            style_img = style_img.to(opts.device)
+            D_fake_style = D_model_style(fake_img, style_img, res)
+            G_style_loss = bce_loss(D_fake_style, ones)
+            G_loss = G_loss + G_style_loss
         G_optimizer.zero_grad()
         G_loss.backward()
         G_optimizer.step()
@@ -141,6 +146,12 @@ def pggan_train(param):
             D_loss = D_TF_loss + D_class_loss + D_char_loss + loss_drift * opts.lambda_drift
             if opts.consistency_loss:
                 D_loss = D_loss + D_consistency_loss * opts.lambda_consistent
+            if opts.style_discriminator:
+                D_style_real = D_model_style(real_img, style_img, res)
+                D_style_fake = D_model_style(fake_img, style_img, res)
+                D_style_wrong = D_model_style(real_img[1:], style_img[:-1], res)
+                D_style_loss = (bce_loss(D_style_real, ones) + bce_loss(D_style_fake, zeros) + bce_loss(D_style_wrong, zeros[1:]))/3
+                D_loss = D_loss + D_style_loss
             D_optimizer.zero_grad()
             D_loss.backward()
             D_optimizer.step()
@@ -185,9 +196,11 @@ def pggan_train(param):
                     test_A = F.adaptive_avg_pool2d(opts.test_A, (img_size, img_size))
                     _, _, test_imp = D_model(test_A.detach(), res)
                     gen_label = F.softmax(test_imp.detach(), dim=1)
-                    test_attr = G_model.module.impression_embedding(gen_label)
-                    fig_vsc = opts.vsc.visualize(opts.test_A, test_attr)
+                    sc_teacher = G_model.module.impression_embedding(labels_oh_)
+                    sc = G_model.module.impression_embedding(gen_label)
+                    fig_vsc = opts.vsc.visualize_sc(sc_teacher, sc)
                     fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))
+
         if iter==100000:
             break
 

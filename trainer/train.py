@@ -175,8 +175,11 @@ def pggan_train(param):
         writer.add_scalars("TF_loss", {'D_TF_loss': D_TF_loss, 'G_TF_loss': G_TF_loss}, iter)
         writer.add_scalars("class_loss", {'D_class_loss': D_class_loss, 'G_class_loss': G_class_loss}, iter)
         writer.add_scalars("char_loss", {'D_char_loss': D_char_loss, 'G_char_loss': G_char_loss}, iter)
-        writer.add_scalars("consistency_loss", {'consistency_loss': D_consistency_loss}, iter)
         writer.add_scalars("Acc", {'real_acc': r_acc, 'fake_acc': f_acc}, iter)
+        if opts.consistency_loss:
+            writer.add_scalars("consistency_loss", {'consistency_loss': D_consistency_loss}, iter)
+        if opts.style_discriminator:
+            writer.add_scalars("style_loss", {'D_style_loss': D_style_loss, 'G_style_loss': G_style_loss}, iter)
         iter += 1
 
         if iter % 100 == 0:
@@ -202,6 +205,8 @@ def pggan_train(param):
                     sc = G_model.module.impression_embedding(gen_label)
                     fig_vsc = opts.vsc.visualize_sc(sc_teacher, sc)
                     fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))
+                    fig_vsc = opts.vsc.visualize_sc_w2v(opts.test_A, sc)
+                    fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_w2v_iter_{iter}.png"))
 
         if iter == 100000:
             break

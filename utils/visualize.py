@@ -61,7 +61,7 @@ class visualize_semantic_condition:
         imscatter(x, y, 255 - image[:, 0, :, :].to('cpu').detach().numpy().copy(), ax=ax,  zoom=.25)
         ax.plot(x, y, 'o', alpha=0)
         ax.autoscale()
-        ax.plot(self.x_, self.y_, 'o', color='green', markersize=10,  alpha=0.4)
+        ax.plot(x_, y_, 'o', color='green', markersize=10,  alpha=0.4)
         return fig
     def visualize_sc(self, attr1, attr2):
         self.pca.fit(self.weight)

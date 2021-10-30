@@ -169,5 +169,6 @@ if __name__=="__main__":
                 f"lambda_gp:{opts.lambda_gp}\n"
                 f"lambda_drift:{opts.lambda_drift}\n"
                 f"lambda_consistent:{opts.lambda_consistent}\n"
+                f"lambda_style:{opts.lambda_style}\n"
                 f"lambda_class:{opts.lambda_class}\n")
     pgmodel_run(opts)

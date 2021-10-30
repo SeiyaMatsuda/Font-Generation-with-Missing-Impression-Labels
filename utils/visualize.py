@@ -64,10 +64,11 @@ class visualize_semantic_condition:
         ax.plot(self.x_, self.y_, 'o', color='green', markersize=10,  alpha=0.4)
         return fig
     def visualize_sc(self, attr1, attr2):
-        x1, y1 = self.pca.fit_transform(attr1.data.cpu()).T
+        self.pca.fit(self.weight)
+        x1, y1 = self.pca.transform(attr1.data.cpu()).T
         x2, y2 = self.pca.transform(attr2.data.cpu()).T
         fig, ax = plt.subplots(figsize=(20.0, 20.0))
-        ax.plot(x1, y1, 'o', color='green', markersize=10,)
+        ax.plot(x1, y1, 'o', color='red', markersize=10,)
         ax.plot(x2, y2, 'o', color='green', markersize=10,)
         ax.autoscale()
         return fig

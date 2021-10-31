@@ -87,12 +87,11 @@ def pgmodel_run(opts):
     dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
                               transform=transform)
     bs = opts.batch_size
-    # pos_weight = dataset.pos_weight
-    DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                             collate_fn=collate_fn, drop_last=True)
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
+        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+                                                 collate_fn=collate_fn, drop_last=True)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'D_model_style':D_model_style,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid,
                  'DataLoader': DataLoader, 'co_matrix': co_matrix,

@@ -44,7 +44,7 @@ def get_parser():
     parser.add_argument('--num_iterations', type=int, default=100000)
     parser.add_argument('--num_iterations_decay', type=int, default=100000)
     parser.add_argument('--dt_now', type=str ,default=str(datetime.datetime.now()))
-    parser.add_argument('--nibuchan', type=str, default=True)
+    parser.add_argument('--nibuchan', type=str, default=False)
     cuda = True if torch.cuda.is_available() else False
     parser.add_argument('--device', type=str, default=torch.device("cuda" if cuda else "cpu"))
     parser.add_argument('--Tensor', default=torch.cuda.FloatTensor if cuda else torch.FloatTensor)

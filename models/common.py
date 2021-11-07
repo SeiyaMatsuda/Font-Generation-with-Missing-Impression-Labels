@@ -164,7 +164,6 @@ class ImpEmbedding(nn.Module):
             res_block.append(ResidualBlock(num_dimension))
         self.res_block = nn.Sequential(*res_block)
     def forward(self, labels , w2v=True):
-        print(labels)
         if w2v:
             labels = labels.view(labels.size(0), labels.size(1), 1)
             attr = torch.mul(self.embed.weight.data, labels)

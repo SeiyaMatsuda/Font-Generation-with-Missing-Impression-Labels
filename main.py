@@ -37,8 +37,8 @@ def pgmodel_run(opts):
     co_matrix = create_co_matrix(label, ID)
     #モデルを定義
     D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress).to(opts.device)
-    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
-    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, attention=opts.attention, char_num=opts.char_num).to(opts.device)
+    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, attention=opts.attention, normalize=opts.sc_normalize).to(opts.device)
+    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, attention=opts.attention, normalize=opts.sc_normalize).to(opts.device)
     if opts.style_discriminator:
         D_model_style = StyleDiscriminator(style_num=4).to(opts.device)
     else:
@@ -84,8 +84,12 @@ def pgmodel_run(opts):
         A = data[idx][:, 0, :, :]
         opts.test_char = torch.eye(opts.char_num)[0].unsqueeze(0).repeat(512, 1)
         opts.test_A = transform(torch.from_numpy(A.astype(np.float32)).clone().unsqueeze(1))
-    dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
+    if opts.multi_learning:
+        dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
                               transform=transform)
+    else:
+        dataset = Myfont_dataset3(data, label, ID, char_num=opts.char_num,
+                                  transform=transform)
     bs = opts.batch_size
     for epoch in range(opts.num_epochs):
         start_time = time.time()
@@ -93,7 +97,7 @@ def pgmodel_run(opts):
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'D_model_style':D_model_style,
-                 'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid,
+                 'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "Dataset": dataset,
                  'DataLoader': DataLoader, 'co_matrix': co_matrix,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
@@ -107,7 +111,7 @@ def pgmodel_run(opts):
         real_acc_list.append(check_point["epoch_real_acc"])
         fake_acc_list.append(check_point["epoch_fake_acc"])
         FID_score.append(check_point["FID"])
-
+        check_point["mAP_score"].to_csv(os.path.join(opts.learning_log_dir, "impression_AP_score.csv"))
         secs = int(time.time() - start_time)
         mins = secs / 60
         secs = secs % 60
@@ -154,6 +158,7 @@ if __name__=="__main__":
                 f"start_iteration:{opts.start_iterations}\n"
                 f"res_step:{opts.res_step}\n"
                 f"attention:{opts.attention}\n"
+                f"multi_learning:{opts.multi_learning}\n"
                 f"label_transform:{opts.label_transform}\n"
                 f"label_compress:{opts.label_compress}\n"
                 f"consistency_loss:{opts.consistency_loss}\n"

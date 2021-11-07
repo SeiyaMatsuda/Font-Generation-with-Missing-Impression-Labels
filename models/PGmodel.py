@@ -124,9 +124,8 @@ class ConvModuleD(nn.Module):
         return x_TF, x_char, x_imp
 
 class Generator(nn.Module):
-    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=100, char_num=26, attention=False):
+    def __init__(self, weight, latent_size=512, w2v_dimension=300, num_dimension=100, char_num=26, attention=False, normalize=True):
         super().__init__()
-
         # conv modules & toRGBs
         self.attention = attention
         self.weight = torch.tensor(weight)
@@ -145,7 +144,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(DCAN(outch, num_dimension, 4 - idx))
-        self.emb_layer = ImpEmbedding(weight, deepsets=False)
+        self.emb_layer = ImpEmbedding(weight, deepsets=False, normalize=normalize)
         self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)

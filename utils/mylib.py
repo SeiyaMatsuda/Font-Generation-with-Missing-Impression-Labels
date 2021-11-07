@@ -118,9 +118,8 @@ def missing2prob(input, co_matrix):
     output = torch.mm(input, co_matrix.T)
     return output
 
-# def missing2prob(input, co_matrix):
-#     output = torch.mul(input.unsqueeze(2), co_matrix)
-#     output = output[torch.where(input == 1)]
-#     output = torch.stack([torch.cumprod(i, dim=0)[-1] for i in torch.split(output, input.sum(1).long().tolist())])
-#     output = output ** (1 / input.sum(1).unsqueeze(1))
-#     return output
+def missing2prob(input, co_matrix):
+    co_matrix_n = co_matrix/(np.diag(co_matrix))
+    output = torch.mm(input, co_matrix_n.T)/input.sum(1).unsqueeze(1)
+    output[input==1]=1
+    return output

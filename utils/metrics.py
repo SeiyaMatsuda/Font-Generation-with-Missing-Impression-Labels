@@ -464,8 +464,8 @@ def mean_average_precision(y_pred, y_true):
         # 代表点
         mask = (y_true_sorted==1)
         average_precisions.append(precision[mask].mean())
-    average_precisions = [x for x in average_precisions if np.isnan(x) == False]
-    return sum(average_precisions)/len(y_true)
+    AP = [x for x in average_precisions if np.isnan(x) == False]
+    return sum(AP)/len(y_true), average_precisions
 if __name__ == '__main__':
     import sys
     from options import get_parser

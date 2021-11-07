@@ -138,8 +138,7 @@ class Myfont_dataset2(torch.utils.data.Dataset):
         return self.data_num
 
     def __getitem__(self, idx):
-        img_target, one_label_target, multi_label_target, \
-        charclass_target, one_embed_label_target, multi_embed_label_target\
+        img_target, one_label_target, multi_label_target, charclass_target, one_embed_label_target, multi_embed_label_target\
             = self.target_dataset[idx]
         idx_source = idx % self.char_num + self.char_num * random.randint(0, int((len(self.source_dataset)/self.char_num) - 1))
         img_source, charclass_source = self.source_dataset[idx_source]
@@ -147,7 +146,7 @@ class Myfont_dataset2(torch.utils.data.Dataset):
         random.shuffle(self.chars)
         style_chars = self.chars[:self.n_style]
         style_imgs_target = []
-        styles_index = list(map(lambda x: x+idx-(idx % self.char_num),style_chars))
+        styles_index = list(map(lambda x: x+idx-(idx % self.char_num), style_chars))
         for char in styles_index:
             style_imgs_target.append(self.transform(self.target_dataset[char][0]))
 
@@ -161,13 +160,11 @@ class Myfont_dataset2(torch.utils.data.Dataset):
         style_imgs_target = np.concatenate(style_imgs_target)
         style_imgs_source = np.concatenate(style_imgs_source)
 
-        return {"img_target": self.transform(img_target),
-                "one_label_target": one_label_target, "multi_label_target": multi_label_target,
-                "charclass_target": charclass_target,
-                "one_embed_label_target": one_embed_label_target, "multi_embed_label_target": multi_embed_label_target,
-                "styles_target": style_imgs_target,
-                "img_source": self.transform(img_source), "charclass_source": charclass_source,
-                "styles_source": style_imgs_source
+        return {"img": self.transform(img_target),
+                "label": multi_label_target,
+                "charclass": charclass_target,
+                "embed_label": multi_embed_label_target,
+                "style_img": style_imgs_target,
                 }
 
 
@@ -199,7 +196,7 @@ class Myfont_dataset3(torch.utils.data.Dataset):
             self.label = key
             self.embed_label = value
             idx = [idx for idx, ll in enumerate(label) if key in ll]
-            idx = random.choices(idx, k=50)
+            idx = random.choices(idx, k=10)
             for i in idx:
                 for j in range(char_num):
                     self.data = data[i][j].astype(np.float32).reshape(-1, self.img_size, self.img_size)
@@ -212,11 +209,19 @@ class Myfont_dataset3(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         img, label, charclass, embed_label \
             = self.dataset[idx]
-
+        # Get style samples
+        random.shuffle(self.chars)
+        style_chars = self.chars[:self.n_style]
+        style_imgs = []
+        styles_index = list(map(lambda x: x+idx-(idx % self.char_num), style_chars))
+        for char in styles_index:
+            style_imgs.append(self.transform(self.dataset[char][0]))
+        style_imgs = np.concatenate(style_imgs)
         return {"img": self.transform(img),
                 "label": label,
                 "charclass": charclass,
-                "embed_label": embed_label
+                "embed_label": [embed_label],
+                "style_img": style_imgs
                 }
 
 

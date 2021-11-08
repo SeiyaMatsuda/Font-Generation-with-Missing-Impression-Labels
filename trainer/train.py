@@ -163,7 +163,7 @@ def pggan_train(param):
                 D_style_real = D_model_style(real_img, style_img, res)
                 D_style_fake = D_model_style(fake_img, style_img, res)
                 D_style_wrong = D_model_style(real_img[1:], style_img[:-1], res)
-                D_style_loss = (style_loss(D_style_real, ones) + style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros[1:]))/3
+                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros[1:]))/2
                 D_loss = D_loss + D_style_loss
             D_optimizer.zero_grad()
             D_loss.backward()

@@ -24,6 +24,7 @@ def pggan_train(param):
     D_model = param["D_model"]
     D_model_style = param["D_model_style"]
     fid = param['fid']
+    mAP_score = param['mAP_score']
     Dataset = param["Dataset"]
     DataLoader = param["DataLoader"]
     co_matrix = param['co_matrix']
@@ -56,7 +57,7 @@ def pggan_train(param):
     char_loss = KlLoss(activation='softmax').to(opts.device)
     ca_loss = CALoss()
     if opts.multi_learning:
-        last_activation =  nn.Sigmoid()
+        last_activation = nn.Sigmoid()
         imp_loss = AsymmetricLoss().to(opts.device)
     else:
         last_activation = nn.Softmax(dim=1)
@@ -68,7 +69,6 @@ def pggan_train(param):
     #mAPを記録するためのリスト
     prediction_imp = []
     target_imp = []
-    mAP_score = pd.DataFrame(columns=list(ID.keys()))
     for batch_idx, samples in enumerate(databar):
         real_img, char_class, labels, style_img = samples['img'], samples['charclass'], samples['embed_label'], samples['style_img']
         #ステップの定義

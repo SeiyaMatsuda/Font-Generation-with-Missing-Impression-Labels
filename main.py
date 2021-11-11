@@ -6,6 +6,7 @@ from models.PGmodel import Generator, Discriminator, StyleDiscriminator
 from torch.utils.tensorboard import SummaryWriter
 from utils.metrics import FID
 from  utils.visualize import visualize_semantic_condition
+import pandas as pd
 
 def make_logdir(path):
     log_dir = path
@@ -44,6 +45,7 @@ def pgmodel_run(opts):
     else:
         D_model_style = None
     fid = FID()
+    mAP_score = pd.DataFrame(columns=list(ID.keys()))
     LOGGER.info(f"================Generator================")
     LOGGER.info(f"{G_model}")
     LOGGER.info(f"================Discriminator================")
@@ -97,8 +99,8 @@ def pgmodel_run(opts):
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'D_model_style':D_model_style,
-                 'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "Dataset": dataset,
-                 'DataLoader': DataLoader, 'co_matrix': co_matrix,
+                 'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score":mAP_score,
+                 "Dataset": dataset, 'DataLoader': DataLoader, 'co_matrix': co_matrix,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]

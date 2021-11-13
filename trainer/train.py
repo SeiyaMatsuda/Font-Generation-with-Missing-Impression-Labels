@@ -58,7 +58,8 @@ def pggan_train(param):
     ca_loss = CALoss()
     if opts.multi_learning:
         last_activation = nn.Sigmoid()
-        imp_loss = AsymmetricLoss().to(opts.device)
+        imp_loss = torch.nn.BCEWithLogitsLoss()
+        # imp_loss = AsymmetricLoss().to(opts.device)
     else:
         last_activation = nn.Softmax(dim=1)
         imp_loss = KlLoss(activation='softmax').to(opts.device)
@@ -101,7 +102,7 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
         gen_label_ = last_activation(D_real_class).detach()
-        gen_label = gen_label_ - gen_label_.mean(0) / (gen_label_.std(0) + 1e-7)
+        gen_label = (gen_label_ - gen_label_.mean(0)) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)

@@ -101,9 +101,9 @@ def pggan_train(param):
         ##画像の生成に必要な印象語ラベルを取得
         _, _, D_real_class = D_model(real_img, res)
         gen_label_ = last_activation(D_real_class).detach()
-        # gen_label_ = gen_label_ - gen_label_.mean(0)
+        gen_label = gen_label_ - gen_label_.mean(0) / (gen_label_.std(0) + 1e-7)
         # ２つのノイズの結合
-        fake_img, mu, logvar = G_model(z, char_class_oh, gen_label_, res)
+        fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
         # Wasserstein lossの計算
         G_TF_loss = -torch.mean(D_fake_TF)
@@ -140,7 +140,7 @@ def pggan_train(param):
         #Discriminatorに本物画像を入れて順伝播⇒Loss計算
         for _ in range(opts.num_critic):
             # 生成用のラベル
-            fake_img, mu, _ = G_model(z, char_class_oh, gen_label_, res)
+            fake_img, mu, _ = G_model(z, char_class_oh, gen_label, res)
             D_real_TF, D_real_char, D_real_class = D_model(real_img, res, cond=mu)
             D_real_loss = -torch.mean(D_real_TF)
             D_fake, D_fake_char, _ = D_model(fake_img.detach(), res, cond=mu)

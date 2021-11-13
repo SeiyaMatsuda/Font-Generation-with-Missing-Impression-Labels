@@ -172,7 +172,7 @@ class ImpEmbedding(nn.Module):
         else:
             attr = attr.sum(1)
             if self.normalize:
-                attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1))
+                attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1) + 1e-7)
         return attr
 class Conditioning_Augumentation(nn.Module):
     def __init__(self, input_dim, output_dim):

@@ -75,7 +75,7 @@ def Multilabel_OneHot(labels, n_categories, dtype=torch.float32, normalize=True)
         return one_hot_labels
 def caliculate_tf_dif(preds):
     tf = preds/preds.sum(1).reshape(-1,1)
-    idf = torch.log((len(preds) + 1) / preds.sum(0))
+    idf = torch.log((len(preds) + 1) / (preds.sum(0) + 1e-7))
     tf_idf = tf * idf
     return tf_idf
 def tile(a, dim, n_tile):

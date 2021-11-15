@@ -73,11 +73,16 @@ def Multilabel_OneHot(labels, n_categories, dtype=torch.float32, normalize=True)
         return torch.mul(one_hot_labels, 1/one_hot_labels.sum(axis = 1).view(-1, 1))
     else:
         return one_hot_labels
-def caliculate_tf_dif(preds):
-    tf = preds/preds.sum(1).reshape(-1,1)
-    idf = torch.log((len(preds) + 1) / (preds.sum(0) + 1e-7))
-    tf_idf = tf * idf
-    return tf_idf
+def caliculate_tf(input:torch.tensor):
+    tf = input/input.sum(1).reshape(-1,1)
+    return tf
+def caliculate_idf(input:torch.tensor):
+    idf = torch.log(len(input)/(input.sum(0) + 1e-7)) + 1
+    return idf
+def caliculate_tf_idf(input:torch.tensor):
+    tf = input / input.sum(1).reshape(-1, 1)
+    idf = torch.log(len(input)/(input.sum(0) + 1e-7)) + 1
+    return tf * idf
 def tile(a, dim, n_tile):
     init_dim = a.size(dim)
     repeat_idx = [1] * a.dim()
@@ -90,7 +95,7 @@ def split_list(l, n):
     リストをサブリストに分割する
     :param l: リスト
     :param n: サブリストの要素数
-    :return: 
+    :return:
     """
     for idx in range(0, len(l), n):
         yield l[idx:idx + n]

@@ -77,11 +77,11 @@ def caliculate_tf(input:torch.tensor):
     tf = input/input.sum(1).reshape(-1,1)
     return tf
 def caliculate_idf(input:torch.tensor):
-    idf = torch.log(len(input)/(input.sum(0) + 1e-7)) + 1
+    idf = torch.log2((len(input)+1)/(input.sum(0) + 1))
     return idf
 def caliculate_tf_idf(input:torch.tensor):
     tf = input / input.sum(1).reshape(-1, 1)
-    idf = torch.log(len(input)/(input.sum(0) + 1e-7)) + 1
+    idf = torch.log2((len(input)+1)/(input.sum(0) + 1))
     return tf * idf
 def tile(a, dim, n_tile):
     init_dim = a.size(dim)

@@ -333,4 +333,4 @@ class StyleDiscriminator(nn.Module):
 
         for i in range(n):
             x = self.blocks[n-1-i](x)
-        return torch.sigmoid(x)
+        return x

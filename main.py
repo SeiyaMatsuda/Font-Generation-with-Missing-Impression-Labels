@@ -41,15 +41,16 @@ def pgmodel_run(opts):
     G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, attention=opts.attention, normalize=opts.sc_normalize).to(opts.device)
     G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, attention=opts.attention, normalize=opts.sc_normalize).to(opts.device)
     if opts.style_discriminator:
-        D_model_style = StyleDiscriminator(style_num=4).to(opts.device)
+        style_D_model = StyleDiscriminator(style_num=4).to(opts.device)
     else:
-        D_model_style = None
+        style_D_model = None
     fid = FID()
     mAP_score = pd.DataFrame(columns=list(ID.keys()))
     LOGGER.info(f"================Generator================")
     LOGGER.info(f"{G_model}")
     LOGGER.info(f"================Discriminator================")
     LOGGER.info(f"{D_model}")
+
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
@@ -57,12 +58,13 @@ def pgmodel_run(opts):
         G_model = nn.DataParallel(G_model)
         G_model_mavg = nn.DataParallel(G_model_mavg)
         if opts.style_discriminator:
-            D_model_style = nn.DataParallel(D_model_style)
+            style_D_model = nn.DataParallel(style_D_model)
     # optimizerの定義
     if opts.style_discriminator:
-        D_optimizer = torch.optim.Adam([{'params': D_model.parameters(), 'lr': opts.d_lr, "betas":(0, 0.99)}, {'params': D_model_style.parameters(), 'lr': opts.d_lr, "betas":(0, 0.99)}])
+        style_D_optimizer = torch.optim.Adam(style_D_model.parameters(), lr=opts.d_lr, betas=(0, 0.99))
     else:
-        D_optimizer = torch.optim.Adam(D_model.parameters(), lr=opts.d_lr, betas=(0, 0.99))
+        style_D_optimizer = None
+    D_optimizer = torch.optim.Adam(D_model.parameters(), lr=opts.d_lr, betas=(0, 0.99))
     G_optimizer = torch.optim.Adam(G_model.parameters(), lr=opts.g_lr, betas=(0, 0.99))
 
     D_TF_loss_list = []
@@ -98,10 +100,10 @@ def pgmodel_run(opts):
         LOGGER.info(f"================epoch_{epoch}================")
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True)
-        param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'D_model_style':D_model_style,
+        param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'style_D_model':style_D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score":mAP_score,
                  "Dataset": dataset, 'DataLoader': DataLoader, 'co_matrix': co_matrix,
-                 'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
+                 'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'style_D_optimizer': style_D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]
         D_TF_loss_list.append(check_point["D_epoch_TF_losses"])
@@ -163,7 +165,6 @@ if __name__=="__main__":
                 f"multi_learning:{opts.multi_learning}\n"
                 f"label_transform:{opts.label_transform}\n"
                 f"label_compress:{opts.label_compress}\n"
-                f"consistency_loss:{opts.consistency_loss}\n"
                 f"style_discriminator:{opts.style_discriminator}\n"
                 f"img_size:{opts.img_size}\n"
                 f"w2v_dimension:{opts.w2v_dimension}\n"
@@ -174,7 +175,6 @@ if __name__=="__main__":
                 f"num_critic:{opts.num_critic}\n"
                 f"lambda_gp:{opts.lambda_gp}\n"
                 f"lambda_drift:{opts.lambda_drift}\n"
-                f"lambda_consistent:{opts.lambda_consistent}\n"
                 f"lambda_style:{opts.lambda_style}\n"
                 f"lambda_class:{opts.lambda_class}\n")
     pgmodel_run(opts)

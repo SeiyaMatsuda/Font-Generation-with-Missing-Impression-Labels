@@ -22,7 +22,7 @@ def pggan_train(param):
     opts = param["opts"]
     G_model = param["G_model"]
     D_model = param["D_model"]
-    D_model_style = param["D_model_style"]
+    style_D_model = param["style_D_model"]
     fid = param['fid']
     mAP_score = param['mAP_score']
     Dataset = param["Dataset"]
@@ -32,6 +32,7 @@ def pggan_train(param):
     test_z = param["z"]
     G_optimizer = param["G_optimizer"]
     D_optimizer = param["D_optimizer"]
+    style_D_optimizer = param["style_D_optimizer"]
     iter_start = param["iter_start"]
     G_model_mavg = param["G_model_mavg"]
     writer = param['writer']
@@ -48,7 +49,7 @@ def pggan_train(param):
     D_running_cl_loss = 0
     G_running_cl_loss = 0
     D_running_char_loss = 0
-    G_running_char_loss=0
+    G_running_char_loss = 0
     real_acc = []
     fake_acc = []
     #Dataloaderの定義
@@ -59,13 +60,11 @@ def pggan_train(param):
     if opts.multi_learning:
         last_activation = nn.Sigmoid()
         imp_loss = torch.nn.BCEWithLogitsLoss().to(opts.device)
-        # imp_loss = AsymmetricLoss().to(opts.device)
     else:
         last_activation = nn.Softmax(dim=1)
         imp_loss = KlLoss(activation='softmax').to(opts.device)
-    if opts.consistency_loss:
-        sc_loss = torch.nn.SmoothL1Loss().to(opts.device)
     if opts.style_discriminator:
+        style_D_model.train()
         style_loss = torch.nn.BCEWithLogitsLoss().to(opts.device)
     #mAPを記録するためのリスト
     prediction_imp = []
@@ -104,7 +103,7 @@ def pggan_train(param):
         gen_label_ = last_activation(D_real_class).detach()
         gen_label = caliculate_tf_idf(gen_label_)
         gen_label = ((gen_label - gen_label.mean(0))/(gen_label.std(0) + 1e-7))
-        gen_label[gen_label<0] = -(gen_label[gen_label<0]**2)
+        gen_label[gen_label<0] = -(gen_label[gen_label < 0]**2)
         gen_label[gen_label > 0] = gen_label[gen_label > 0] ** 2
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
@@ -123,7 +122,7 @@ def pggan_train(param):
             zeros = torch.zeros(batch_len, 1, 1, 1).to(opts.device)
             style_img = F.adaptive_avg_pool2d(style_img, (img_size, img_size))
             style_img = style_img.to(opts.device)
-            D_fake_style = D_model_style(fake_img, style_img, res)
+            D_fake_style = style_D_model(fake_img, style_img, res)
             G_style_loss = style_loss(D_fake_style, ones)
             G_loss = G_loss + G_style_loss * opts.lambda_style
         G_optimizer.zero_grad()
@@ -159,20 +158,17 @@ def pggan_train(param):
             # 印象語分類のロス
             D_class_loss = imp_loss(D_real_class, labels_oh_)
             D_loss = D_TF_loss + D_class_loss + D_char_loss + loss_drift * opts.lambda_drift
-            if opts.consistency_loss:
-                sc_ = G_model.module.impression_embedding(gen_label).to(opts.device)
-                sc = G_model.module.mean_embedding_representation(labels_oh).to(opts.device)
-                D_consistency_loss = sc_loss(sc_, sc)
-                D_loss = D_loss + D_consistency_loss * opts.lambda_consistent
-            if opts.style_discriminator:
-                D_style_real = D_model_style(real_img, style_img, res)
-                D_style_fake = D_model_style(fake_img, style_img, res)
-                D_style_wrong = D_model_style(real_img[1:], style_img[:-1], res)
-                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros[1:]))/2
-                D_loss = D_loss + D_style_loss
             D_optimizer.zero_grad()
-            D_loss.backward()
+            D_loss.backward(retain_graph=True)
             D_optimizer.step()
+            if opts.style_discriminator:
+                D_style_real = style_D_model(real_img, style_img, res)
+                D_style_fake = style_D_model(fake_img, style_img, res)
+                D_style_wrong = style_D_model(real_img[1:], style_img[:-1], res)
+                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros[1:]))/2
+                style_D_optimizer.zero_grad()
+                D_style_loss.backward()
+                style_D_optimizer.step()
             D_running_TF_loss += D_TF_loss.item()
             D_running_cl_loss += D_class_loss.item()
             D_running_char_loss += D_char_loss.item()
@@ -193,8 +189,6 @@ def pggan_train(param):
         writer.add_scalars("class_loss", {'D_class_loss': D_class_loss, 'G_class_loss': G_class_loss}, iter)
         writer.add_scalars("char_loss", {'D_char_loss': D_char_loss, 'G_char_loss': G_char_loss}, iter)
         writer.add_scalars("Acc", {'real_acc': r_acc, 'fake_acc': f_acc}, iter)
-        if opts.consistency_loss:
-            writer.add_scalars("consistency_loss", {'consistency_loss': D_consistency_loss}, iter)
         if opts.style_discriminator:
             writer.add_scalars("style_loss", {'D_style_loss': D_style_loss, 'G_style_loss': G_style_loss}, iter)
         iter += 1

@@ -33,7 +33,7 @@ def get_parser():
     parser.set_defaults(label_compress=True)
     parser.add_argument('--style_discriminator', dest='style_discriminator', action='store_true')
     parser.add_argument('--no_style_discriminator', dest='style_discriminator', action='store_false')
-    parser.set_defaults(style_discriminator=False)
+    parser.set_defaults(style_discriminator=True)
     parser.add_argument('--sc_normalize', dest='sc_normalize', action='store_true')
     parser.add_argument('--no_sc_normalize', dest='sc_normalize', action='store_false')
     parser.set_defaults(sc_normalize=True)

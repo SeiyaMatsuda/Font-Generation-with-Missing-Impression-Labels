@@ -99,7 +99,7 @@ def pgmodel_run(opts):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                                 collate_fn=collate_fn, drop_last=True)
+                                                 collate_fn=collate_fn, drop_last=True, pin_memory=True, num_workers=4)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'style_D_model':style_D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score":mAP_score,
                  "Dataset": dataset, 'DataLoader': DataLoader, 'co_matrix': co_matrix,

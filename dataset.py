@@ -105,28 +105,14 @@ class Myfont_dataset2(torch.utils.data.Dataset):
         self.prob = {}
         self.data_num = len(label)
         # 特定のラベルが選ばれる期待値を算出
-        for i in range(self.data_num):
-            for key in label[i]:
-                if key not in self.prob.keys():
-                    self.prob[key] = (1 / self.data_num) * (1 / len(label[i]))
-                else:
-                    self.prob[key] = self.prob[key] + (1 / self.data_num) * (1 / len(label[i]))
         for i in tqdm.tqdm(range(len(data)),total = len(data)):
             if len(label[i]) != 0:
-                tag_prob = []
-                for key in label[i]:
-                    tag_prob.append(self.prob[key])
-                r = return_index(label[i], tag_prob)
-                self.one_label = label[i][r[0]]
                 self.multi_label = label[i]
-                self.one_embed_label = self.ID[self.one_label]
                 self.multi_emebed_label = [self.ID[key] for key in self.multi_label]
                 for j in range(self.char_num):
                     self.data = data[i][j].astype(np.float32).reshape(-1, self.img_size, self.img_size)
                     self.char_class = j
-                    self.target_dataset.append([self.data, self.one_label, self.multi_label, self.char_class, self.one_embed_label, self.multi_emebed_label])
-                    if 'plain' in label[i]:
-                        self.source_dataset.append([self.data, self.char_class])
+                    self.target_dataset.append([self.data, self.multi_label, self.char_class, self.multi_emebed_label])
             else:
                 continue
         self.weight = dict(Counter(sum(label, [])))
@@ -138,33 +124,28 @@ class Myfont_dataset2(torch.utils.data.Dataset):
         return self.data_num
 
     def __getitem__(self, idx):
-        img_target, one_label_target, multi_label_target, charclass_target, one_embed_label_target, multi_embed_label_target\
+        img_target, multi_label_target, charclass_target, multi_embed_label_target\
             = self.target_dataset[idx]
-        idx_source = idx % self.char_num + self.char_num * random.randint(0, int((len(self.source_dataset)/self.char_num) - 1))
-        img_source, charclass_source = self.source_dataset[idx_source]
         # Get style samples
+        font_number = idx-(idx % self.char_num)
         random.shuffle(self.chars)
         style_chars = self.chars[:self.n_style]
         style_imgs_target = []
-        styles_index = list(map(lambda x: x+idx-(idx % self.char_num), style_chars))
+        styles_index = list(map(lambda x: x + font_number, style_chars))
         for char in styles_index:
             style_imgs_target.append(self.transform(self.target_dataset[char][0]))
 
-        random.shuffle(self.chars)
-        style_chars = self.chars[:self.n_style]
-        style_imgs_source = []
-        styles_index = map(lambda x: x+idx_source-(idx_source % self.char_num),style_chars)
-        for char in styles_index:
-            style_imgs_source.append(self.transform(self.source_dataset[char][0]))
-
         style_imgs_target = np.concatenate(style_imgs_target)
-        style_imgs_source = np.concatenate(style_imgs_source)
 
+        diff_font_number = random.choice(list(range(len(self.target_dataset) // self.char_num)))
+        diff_img_idx =  self.char_num * diff_font_number + idx % self.char_num
+        un_style_img = self.target_dataset[diff_img_idx][0]
         return {"img": self.transform(img_target),
                 "label": multi_label_target,
                 "charclass": charclass_target,
                 "embed_label": multi_embed_label_target,
                 "style_img": style_imgs_target,
+                "diff_img": un_style_img,
                 }
 
 
@@ -235,11 +216,14 @@ if __name__=="__main__":
     parser = get_parser()
     opts = parser.parse_args()
     data = np.array([np.load(d) for d in opts.data])
+    label = opts.impression_word_list
     transform = transforms.Compose(
         [Transform()])
-    ID = {}
-    ID = {key: idx + 1 for idx, key in enumerate(opts.w2v_vocab)}
-    data = Myfont_dataset3(data, opts.correct_impression_word_list, ID, char_num = 26, transform=transform)
+    ID = {key:idx+1 for idx, key in enumerate(opts.w2v_vocab)}
+
+    dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
+                              transform=transform)
+    dataset[1200]
     dataloader = torch.utils.data.DataLoader(data, batch_size=64, shuffle=True, collate_fn = collate_fn)
     for t in tqdm.tqdm(dataloader,total= len(dataloader)):
         exit()

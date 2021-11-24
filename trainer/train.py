@@ -70,7 +70,8 @@ def pggan_train(param):
     prediction_imp = []
     target_imp = []
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels, style_img = samples['img'], samples['charclass'], samples['embed_label'], samples['style_img']
+        real_img, char_class, labels, style_img, diff_img \
+            = samples['img'], samples['charclass'], samples['embed_label'], samples['style_img'], samples['diff_img']
         #ステップの定義
         res = iter / opts.res_step
         # get integer by floor
@@ -162,10 +163,12 @@ def pggan_train(param):
             D_loss.backward(retain_graph=True)
             D_optimizer.step()
             if opts.style_discriminator:
+                diff_img = F.adaptive_avg_pool2d(diff_img, (img_size, img_size))
+                diff_img = diff_img.to(opts.device)
                 D_style_real = style_D_model(real_img, style_img, res)
                 D_style_fake = style_D_model(fake_img, style_img, res)
-                D_style_wrong = style_D_model(real_img[1:], style_img[:-1], res)
-                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros[1:]))/2
+                D_style_wrong = style_D_model(diff_img, style_img, res)
+                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros))/2
                 style_D_optimizer.zero_grad()
                 D_style_loss.backward()
                 style_D_optimizer.step()

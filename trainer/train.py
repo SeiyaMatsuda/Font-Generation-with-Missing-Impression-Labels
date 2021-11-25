@@ -60,7 +60,7 @@ def pggan_train(param):
     ca_loss = CALoss()
     if opts.multi_learning:
         last_activation = nn.Sigmoid()
-        imp_loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight).to(opts.device)
+        imp_loss = torch.nn.BCEWithLogitsLoss().to(opts.device)
     else:
         last_activation = nn.Softmax(dim=1)
         imp_loss = KlLoss(activation='softmax').to(opts.device)

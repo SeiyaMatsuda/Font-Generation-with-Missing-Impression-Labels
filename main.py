@@ -91,9 +91,11 @@ def pgmodel_run(opts):
     if opts.multi_learning:
         dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
                               transform=transform)
+        pos_weight = dataset.pos_weight
     else:
         dataset = Myfont_dataset3(data, label, ID, char_num=opts.char_num,
                                   transform=transform)
+
     bs = opts.batch_size
     for epoch in range(opts.num_epochs):
         start_time = time.time()
@@ -101,8 +103,8 @@ def pgmodel_run(opts):
         DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True, pin_memory=True, num_workers=4)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'style_D_model':style_D_model,
-                 'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score":mAP_score,
-                 "Dataset": dataset, 'DataLoader': DataLoader, 'co_matrix': co_matrix,
+                 'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score": mAP_score,
+                 "Dataset": dataset, 'DataLoader': DataLoader, 'co_matrix': co_matrix, 'pos_weight':pos_weight,
                  'G_optimizer': G_optimizer, 'D_optimizer': D_optimizer, 'style_D_optimizer': style_D_optimizer, 'log_dir': opts.logs_GAN, "iter_start":iter_start,'ID': ID, 'writer': writer}
         check_point = pggan_train(param)
         iter_start = check_point["iter_finish"]
@@ -149,6 +151,8 @@ if __name__=="__main__":
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+
     # make dirs
     opts.log_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))

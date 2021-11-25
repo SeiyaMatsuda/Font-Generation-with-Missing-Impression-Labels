@@ -26,6 +26,7 @@ def pggan_train(param):
     fid = param['fid']
     mAP_score = param['mAP_score']
     Dataset = param["Dataset"]
+    pos_weight = param["pos_weight"]
     DataLoader = param["DataLoader"]
     co_matrix = param['co_matrix']
     ID = param['ID']
@@ -59,7 +60,7 @@ def pggan_train(param):
     ca_loss = CALoss()
     if opts.multi_learning:
         last_activation = nn.Sigmoid()
-        imp_loss = torch.nn.BCEWithLogitsLoss().to(opts.device)
+        imp_loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight).to(opts.device)
     else:
         last_activation = nn.Softmax(dim=1)
         imp_loss = KlLoss(activation='softmax').to(opts.device)

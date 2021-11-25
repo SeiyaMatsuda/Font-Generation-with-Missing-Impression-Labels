@@ -30,7 +30,7 @@ def get_parser():
     parser.set_defaults(label_transform=True)
     parser.add_argument('--label_compress', dest='label_compress', action='store_true')
     parser.add_argument('--no_label_compress', dest='label_compress', action='store_false')
-    parser.set_defaults(label_compress=False)
+    parser.set_defaults(label_compress=True)
     parser.add_argument('--style_discriminator', dest='style_discriminator', action='store_true')
     parser.add_argument('--no_style_discriminator', dest='style_discriminator', action='store_false')
     parser.set_defaults(style_discriminator=True)

@@ -127,13 +127,12 @@ class Myfont_dataset2(torch.utils.data.Dataset):
         img_target, multi_label_target, charclass_target, multi_embed_label_target\
             = self.target_dataset[idx]
         # Get style samples
-        font_number = idx-(idx % self.char_num)
         random.shuffle(self.chars)
         style_chars = self.chars[:self.n_style]
         style_imgs_target = []
-        styles_index = list(map(lambda x: x + font_number, style_chars))
+        styles_index = list(map(lambda x:x+idx-(idx % self.char_num), style_chars))
         for char in styles_index:
-            style_imgs_target.append(self.transform(self.target_dataset[char][0]))
+            style_imgs_target.append(self.target_dataset[char][0])
 
         style_imgs_target = np.concatenate(style_imgs_target)
 
@@ -144,8 +143,8 @@ class Myfont_dataset2(torch.utils.data.Dataset):
                 "label": multi_label_target,
                 "charclass": charclass_target,
                 "embed_label": multi_embed_label_target,
-                "style_img": style_imgs_target,
-                "diff_img": un_style_img,
+                "style_img":  self.transform(style_imgs_target),
+                "diff_img":  self.transform(un_style_img)
                 }
 
 

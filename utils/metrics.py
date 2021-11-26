@@ -463,7 +463,7 @@ def mean_average_precision(y_pred, y_true):
         precision = cumsum / torch.arange(1, 1 + y_true[i].shape[0])
         # 代表点
         mask = (y_true_sorted==1)
-        average_precisions.append(precision[mask].mean())
+        average_precisions.append(precision[mask].mean().item())
     AP = [x for x in average_precisions if np.isnan(x) == False]
     return sum(AP)/len(y_true), average_precisions
 if __name__ == '__main__':

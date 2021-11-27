@@ -134,7 +134,7 @@ def pgmodel_run(opts):
         LOGGER.info(f'\tacc: {check_point["epoch_fake_acc"]:.4f}(fake_acc)')
         LOGGER.info(f'\tFID: {check_point["FID"]:.4f}(FID)')
        # モデル保存のためのcheckpointファイルを作成
-        if iter_start >= 100000:
+        if iter_start >= opts.res_step*6:
             break
 
     writer.close()

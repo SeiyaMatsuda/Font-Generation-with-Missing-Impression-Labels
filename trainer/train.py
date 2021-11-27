@@ -105,8 +105,6 @@ def pggan_train(param):
         gen_label_ = last_activation(D_real_class).detach()
         gen_label = caliculate_tf_idf(gen_label_)
         gen_label = ((gen_label - gen_label.mean(0))/(gen_label.std(0) + 1e-7))
-        gen_label[gen_label<0] = -(gen_label[gen_label < 0]**2)
-        gen_label[gen_label > 0] = gen_label[gen_label > 0] ** 2
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)
         D_fake_TF, D_fake_char, D_fake_class = D_model(fake_img, res, cond=mu)
@@ -217,8 +215,6 @@ def pggan_train(param):
                     gen_label_ = last_activation(test_imp.detach())
                     gen_label = caliculate_tf_idf(gen_label_)
                     gen_label = (gen_label - gen_label.mean(0)) / (gen_label.std(0) + 1e-7)
-                    gen_label[gen_label < 0] = -(gen_label[gen_label < 0] ** 2)
-                    gen_label[gen_label > 0] = gen_label[gen_label > 0] ** 2
                     sc_teacher = G_model.module.impression_embedding(labels_oh_)
                     sc = G_model.module.impression_embedding(gen_label)
                     fig_vsc = opts.vsc.visualize_sc(sc_teacher, sc)
@@ -226,7 +222,7 @@ def pggan_train(param):
                     fig_vsc = opts.vsc.visualize_sc_w2v(opts.test_A, sc)
                     fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_w2v_iter_{iter}.png"))
 
-        if iter == 100000:
+        if iter == opts.res_step * 6:
             break
     prediction_imp = torch.cat(prediction_imp, axis=0)
     target_imp = torch.cat(target_imp, axis=0)

@@ -1,23 +1,13 @@
 from __future__ import print_function
-import argparse
-import os
-import random
 import torch
 import torch.nn as nn
 import gc
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
-import torchvision.datasets as dset
 import torchvision.transforms as transforms
-import torchvision.utils as vutils
 import torch.nn.functional as F
-import numpy as np
-import matplotlib.pyplot as plt
 import torchvision.models as models
-import matplotlib.animation as animation
-from IPython.display import HTML
 import cv2
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
@@ -364,53 +354,59 @@ class GAN_train_test(nn.Module):
         elif self.train_or_test=="train":
             train_dataset, test_dataset = self.build_dataset(fake_img, fake_label, real_img, real_label)
         kf = KFold(n_splits=5)
-        CV_score = []
+        CV_val_score = []
+        CV_test_score = []
+        AP_score_for_earch_imp =[]
         for i, (train_indices, val_indices) in enumerate(kf.split(list(range(len(train_dataset))))):
             self.model = self.build_model(self.num_class).to(self.device)
-            self.optimizer = optim.Adam(self.model.parameters(), lr=0.01)
-            earlystopping = EarlyStopping(patience=5, verbose=False, path=os.path.join(self.save_dir, f"'fold{i}.pth'"))
             if data_pararell:
-                self.model=nn.DataParallel(self.model)
-            tr_dataset = torch.utils.data.Subset(train_dataset, train_indices)
-            val_dataset = torch.utils.data.Subset(train_dataset, val_indices)
-            train_loader = torch.utils.data.DataLoader(tr_dataset, batch_size=batch_size, shuffle=shuffle)
-            val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-            for epoch in range(epochs):
-                self.model.train()
-                train_loss = []
-                eval_loss = []
-                out_ = []
-                yy_ = []
-                for x_train, y_train in tqdm(train_loader, total=len(train_loader)):
-                    prediction, loss = self.train(x_train, y_train)
-                    train_loss.append(loss)
-                    out_.append(prediction.data.cpu())
-                    yy_.append(y_train.data.cpu())
-                train_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))
-                out_ = []
-                yy_ = []
-                gc.collect()
-                with torch.no_grad():
-                    self.model.eval()
-                    for x_val, y_val in tqdm(val_loader, total=len(val_loader)):
-                        prediction, loss = self.eval(x_val, y_val)
-                        eval_loss.append(loss)
+                self.model = nn.DataParallel(self.model)
+            if not os.path.exists(os.path.join(self.save_dir, f"fold{i}.pth")):
+                self.optimizer = optim.Adam(self.model.parameters(), lr=0.01)
+                earlystopping = EarlyStopping(patience=5, verbose=False, path=os.path.join(self.save_dir, f"fold{i}.pth"))
+                tr_dataset = torch.utils.data.Subset(train_dataset, train_indices)
+                val_dataset = torch.utils.data.Subset(train_dataset, val_indices)
+                train_loader = torch.utils.data.DataLoader(tr_dataset, batch_size=batch_size, shuffle=shuffle)
+                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+                for epoch in range(epochs):
+                    self.model.train()
+                    train_loss = []
+                    eval_loss = []
+                    out_ = []
+                    yy_ = []
+                    for x_train, y_train in tqdm(train_loader, total=len(train_loader)):
+                        prediction, loss = self.train(x_train, y_train)
+                        train_loss.append(loss)
                         out_.append(prediction.data.cpu())
-                        yy_.append(y_val.data.cpu())
-                eval_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))
-                total_train_loss = np.asarray(train_loss).mean()
-                total_train_map = np.asarray(train_map).mean()
-                total_val_loss = np.asarray(eval_loss).mean()
-                total_val_map = np.asarray(eval_map).mean()
-                print(f"Epoch: {epoch}, train_loss: {total_train_loss}.")
-                print(f"Epoch: {epoch}, train_accuracy: {total_train_map}.")
-                print(f"Epoch: {epoch}, val_loss: {total_val_loss}.")
-                print(f"Epoch: {epoch}, val_map: {total_val_map}.")
-                earlystopping(total_val_loss, self.model)  # callメソッド呼び出し
-                if earlystopping.early_stop:  # ストップフラグがTrueの場合、breakでforループを抜ける
-                    print("Early Stopping!")
-                    break
+                        yy_.append(y_train.data.cpu())
+                    train_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))[0]
+                    out_ = []
+                    yy_ = []
+                    gc.collect()
+                    with torch.no_grad():
+                        self.model.eval()
+                        for x_val, y_val in tqdm(val_loader, total=len(val_loader)):
+                            prediction, loss = self.eval(x_val, y_val)
+                            eval_loss.append(loss)
+                            out_.append(prediction.data.cpu())
+                            yy_.append(y_val.data.cpu())
+                    eval_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))[0]
+                    total_train_loss = np.asarray(train_loss).mean()
+                    total_train_map = np.asarray(train_map).mean()
+                    total_val_loss = np.asarray(eval_loss).mean()
+                    total_val_map = np.asarray(eval_map).mean()
+                    print(f"Epoch: {epoch}, train_loss: {total_train_loss}.")
+                    print(f"Epoch: {epoch}, train_loss: {total_train_loss}.")
+                    print(f"Epoch: {epoch}, train_accuracy: {total_train_map}.")
+                    print(f"Epoch: {epoch}, val_loss: {total_val_loss}.")
+                    print(f"Epoch: {epoch}, val_map: {total_val_map}.")
+                    earlystopping(total_val_loss, self.model)  # callメソッド呼び出し
+                    if earlystopping.early_stop:  # ストップフラグがTrueの場合、breakでforループを抜ける
+                        print("Early Stopping!")
+                        CV_val_score.append(earlystopping.best_score)
+                        break
+            self.model.load_state_dict(torch.load(os.path.join(self.save_dir, f"fold{i}.pth")))
+            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
             out_ = []
             yy_ = []
             with torch.no_grad():
@@ -419,11 +415,12 @@ class GAN_train_test(nn.Module):
                     pred_test, _ = self.eval(x_test, y_test)
                     out_.append(pred_test)
                     yy_.append(y_test)
-            test_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))
+            test_map, test_ap_imp = mean_average_precision(torch.cat(out_), torch.cat(yy_))
             score = np.asarray(test_map).mean()
+            AP_score_for_earch_imp.append(test_ap_imp)
             print((f"fold{i}, test_map: {score}."))
-            CV_score.append(score)
-        return CV_score
+            CV_test_score.append(score)
+        return CV_test_score, np.array(AP_score_for_earch_imp), CV_val_score
 
 def pseudo_hamming(v1, v2):
     start_time=time.time()
@@ -474,10 +471,10 @@ if __name__ == '__main__':
     parser = get_parser()
     opts = parser.parse_args(args=[])
     data = torch.from_numpy(np.array([np.load(d) for d in opts.data]))[:, :26, :, :].float() / 127.5 - 1
-    label = opts.impression_word_list
+    label = opts.impression_word_list[:100]
     ID = {key: idx + 1 for idx, key in enumerate(opts.w2v_vocab)}
-    real_img = torch.zeros(size=(len(label), 26, 64, 64)).float()
-    fake_img = torch.zeros(size=(len(label), 26, 64, 64)).float()
+    real_img = torch.zeros(size=(len(label), 26, 64, 64)).float()[:100]
+    fake_img = torch.zeros(size=(len(label), 26, 64, 64)).float()[:100]
     a = GAN_train_test(len(ID), ID, "train", 'cuda')
     pos_weight = a.caliculate_pos_weight(label)
     a.run(fake_img.reshape(-1, 26, fake_img.size(2), fake_img.size(3)), label, real_img.reshape(-1, 26, real_img.size(2), real_img.size(3)), label, pos_weight, 64, batch_size=64,

@@ -81,10 +81,7 @@ class ConvModuleD(nn.Module):
             else:
                 layer_imp = [
                 nn.Flatten(),
-                nn.Linear(outch * 4 * 4, 2 * imp_num),
-                nn.Dropout(p=0.5),
-                nn.LeakyReLU(0.2, inplace=True),
-                nn.Linear(2 * imp_num, imp_num)
+                nn.Linear(outch * 4 * 4, imp_num)
                 ]
             self.layer_TF = nn.Sequential(*layer_TF)
             self.layer_char = nn.Sequential(*layer_char)

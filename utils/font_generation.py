@@ -27,8 +27,9 @@ class Font_Generator:
         alpha_num = list(map(self.alpha2num, alphabet))
         char_num = len(alpha_num)
         char_class = torch.eye(26)[torch.tensor(alpha_num)].repeat(generate_num, 1)
-        z_img =self.z_img[:generate_num]
-        z_cond = self.z_cond[:generate_num]
+        idx = torch.randperm(len(self.z_img))[:generate_num]
+        z_img = self.z_img[idx]
+        z_cond = self.z_cond[idx]
         z_img = tile(z_img, 0, char_num).to(device)
         z_cond = tile(z_cond, 0, char_num).to(device)
         label = [[self.ID[token] for token in impression_word]]

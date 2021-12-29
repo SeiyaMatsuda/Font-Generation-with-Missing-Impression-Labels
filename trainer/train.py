@@ -92,7 +92,6 @@ def pggan_train(param):
         # 印象語のベクトル
         labels_oh = Multilabel_OneHot(labels, len(ID), normalize=False)
         if opts.label_transform:
-            co_matrix = co_matrix
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
         else:
             labels_oh_ = labels_oh

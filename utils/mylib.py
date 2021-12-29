@@ -3,19 +3,8 @@ import random
 import tqdm
 import torch
 import operator
-import cv2
-import glob
-from PIL import Image
-import torch.nn.functional as F
-import torch.nn as nn
+from collections import OrderedDict
 import numpy as np
-from torch import bernoulli
-import time
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import torch.autograd as autograd
-import matplotlib.pyplot as plt
-from torchvision.utils import save_image
-import os
 def pickle_dump(obj,path):
     with open(path,mode="wb") as f:
         pickle.dump(obj, f)
@@ -133,3 +122,11 @@ def missing2prob(input, co_matrix):
     output = torch.mm(input, co_matrix_n.T)/input.sum(1).unsqueeze(1)
     # output[input==1]=1
     return output
+def fix_model_state_dict(state_dict):
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = k
+        if name.startswith('module.'):
+            name = name[7:]  # remove 'module.' of dataparallel
+        new_state_dict[name] = v
+    return new_state_dict

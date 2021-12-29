@@ -17,6 +17,7 @@ import os
 from sklearn.model_selection import KFold
 
 import time
+from numpy.linalg import norm
 try:
     from tqdm import tqdm
 except ImportError:
@@ -295,15 +296,16 @@ class DataSet(torch.utils.data.Dataset):
         return X, Y
 
 class GAN_train_test(nn.Module):
-    def __init__(self, num_class, ID, train_or_test="train", device="cuda"):
+    def __init__(self, num_class, ID, save_dir="./", train_or_test="train", device="cuda", metric="mAP_imp"):
         super(GAN_train_test, self).__init__()
         self.transform = transforms.Compose([
             transforms.Resize(224)])
         self.num_class = num_class
         self.train_or_test = train_or_test
         self.ID = ID
+        self.metric = metric
         self.device = device
-        self.save_dir = f"./models/{self.train_or_test}"
+        self.save_dir = os.path.join(save_dir, "models", self.metric, self.train_or_test)
         if not os.path.isdir(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -349,6 +351,10 @@ class GAN_train_test(nn.Module):
 
     def run(self, real_img, real_label, fake_img, fake_label, pos_weight, epochs, batch_size=64, shuffle=True, data_pararell=True):
         self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight).to(self.device)
+        if self.metric=="mAP_imp":
+            self.metric=mean_average_precision_impression
+        elif self.metric=="mAP_default":
+            self.metric=mean_average_precision_default
         if self.train_or_test=="test":
             train_dataset, test_dataset = self.build_dataset(real_img, real_label, fake_img, fake_label)
         elif self.train_or_test=="train":
@@ -356,7 +362,7 @@ class GAN_train_test(nn.Module):
         kf = KFold(n_splits=5)
         CV_val_score = []
         CV_test_score = []
-        AP_score_for_earch_imp =[]
+        AP_score_for_earch = []
         for i, (train_indices, val_indices) in enumerate(kf.split(list(range(len(train_dataset))))):
             self.model = self.build_model(self.num_class).to(self.device)
             if data_pararell:
@@ -366,8 +372,8 @@ class GAN_train_test(nn.Module):
                 earlystopping = EarlyStopping(patience=5, verbose=False, path=os.path.join(self.save_dir, f"fold{i}.pth"))
                 tr_dataset = torch.utils.data.Subset(train_dataset, train_indices)
                 val_dataset = torch.utils.data.Subset(train_dataset, val_indices)
-                train_loader = torch.utils.data.DataLoader(tr_dataset, batch_size=batch_size, shuffle=shuffle)
-                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+                train_loader = torch.utils.data.DataLoader(tr_dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, num_workers=4)
+                val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=4)
                 for epoch in range(epochs):
                     self.model.train()
                     train_loss = []
@@ -379,7 +385,7 @@ class GAN_train_test(nn.Module):
                         train_loss.append(loss)
                         out_.append(prediction.data.cpu())
                         yy_.append(y_train.data.cpu())
-                    train_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))[0]
+                    train_map = self.metric(torch.cat(out_), torch.cat(yy_))[0]
                     out_ = []
                     yy_ = []
                     gc.collect()
@@ -390,14 +396,13 @@ class GAN_train_test(nn.Module):
                             eval_loss.append(loss)
                             out_.append(prediction.data.cpu())
                             yy_.append(y_val.data.cpu())
-                    eval_map = mean_average_precision(torch.cat(out_), torch.cat(yy_))[0]
+                    eval_map = self.metric(torch.cat(out_), torch.cat(yy_))[0]
                     total_train_loss = np.asarray(train_loss).mean()
                     total_train_map = np.asarray(train_map).mean()
                     total_val_loss = np.asarray(eval_loss).mean()
                     total_val_map = np.asarray(eval_map).mean()
                     print(f"Epoch: {epoch}, train_loss: {total_train_loss}.")
-                    print(f"Epoch: {epoch}, train_loss: {total_train_loss}.")
-                    print(f"Epoch: {epoch}, train_accuracy: {total_train_map}.")
+                    print(f"Epoch: {epoch}, train_map: {total_train_map}.")
                     print(f"Epoch: {epoch}, val_loss: {total_val_loss}.")
                     print(f"Epoch: {epoch}, val_map: {total_val_map}.")
                     earlystopping(total_val_loss, self.model)  # callメソッド呼び出し
@@ -406,7 +411,7 @@ class GAN_train_test(nn.Module):
                         CV_val_score.append(earlystopping.best_score)
                         break
             self.model.load_state_dict(torch.load(os.path.join(self.save_dir, f"fold{i}.pth")))
-            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=4)
             out_ = []
             yy_ = []
             with torch.no_grad():
@@ -415,12 +420,12 @@ class GAN_train_test(nn.Module):
                     pred_test, _ = self.eval(x_test, y_test)
                     out_.append(pred_test)
                     yy_.append(y_test)
-            test_map, test_ap_imp = mean_average_precision(torch.cat(out_), torch.cat(yy_))
+            test_map, test_ap_imp = self.metric(torch.cat(out_), torch.cat(yy_))
             score = np.asarray(test_map).mean()
-            AP_score_for_earch_imp.append(test_ap_imp)
+            AP_score_for_earch.append(test_ap_imp)
             print((f"fold{i}, test_map: {score}."))
             CV_test_score.append(score)
-        return CV_test_score, np.array(AP_score_for_earch_imp), CV_val_score
+        return CV_test_score, np.array(AP_score_for_earch), CV_val_score
 
 def pseudo_hamming(v1, v2):
     start_time=time.time()
@@ -448,7 +453,7 @@ def ranking_acc(pred, true):
         result.append(((ranking == target).sum(1)>0).sum()/ranking.shape[0])
     return result
 
-def mean_average_precision(y_pred, y_true):
+def mean_average_precision_impression(y_pred, y_true):
     average_precisions = []
     # クラス単位でAPを計算
     y_true = y_true.T
@@ -463,6 +468,24 @@ def mean_average_precision(y_pred, y_true):
         average_precisions.append(precision[mask].mean().item())
     AP = [x for x in average_precisions if np.isnan(x) == False]
     return sum(AP)/len(y_true), average_precisions
+
+def mean_average_precision_default(y_pred, y_true):
+    average_precisions = []
+    # クラス単位でAPを計算
+    for i in range(len(y_true)):
+        sort_idx = torch.argsort(y_pred[i], descending=True)
+        y_true_sorted = y_true[i][sort_idx]
+        cumsum = torch.cumsum(y_true_sorted, dim = 0)
+        precision = cumsum / torch.arange(1, 1 + y_true[i].shape[0])
+        # 代表点
+        mask = (y_true_sorted==1)
+        average_precisions.append(precision[mask].mean().item())
+    AP = [x for x in average_precisions if np.isnan(x) == False]
+    return sum(AP)/len(y_true), average_precisions
+def caliculate_cosine_dist(input, target):
+    dist = np.dot(target, input)/ (norm(target, axis=1) * norm(input))
+    return dist
+
 if __name__ == '__main__':
     import sys
     from options import get_parser

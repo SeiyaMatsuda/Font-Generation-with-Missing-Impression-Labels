@@ -57,7 +57,7 @@ class ConvModuleD(nn.Module):
         outch: (int), Ex.: 128
     '''
 
-    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, compress=False, dropout=False):
+    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, compress=False, dropout=False, reduce_ratio=0.7):
         super().__init__()
         self.final = final
         if final:
@@ -75,9 +75,9 @@ class ConvModuleD(nn.Module):
             if compress:
                 layer_imp = [
                     nn.Flatten(),
-                    nn.Linear(outch * 4 * 4, 300),
+                    nn.Linear(outch * 4 * 4, int(imp_num * reduce_ratio )),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(300, imp_num)]
+                    nn.Linear(int(imp_num * reduce_ratio), imp_num)]
             else:
                 layer_imp = [
                 nn.Flatten(),
@@ -200,7 +200,7 @@ class Generator(nn.Module):
         return torch.tanh(x), mu, logvar
 
 class Discriminator(nn.Module):
-    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True):
+    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True, reduce_ratio=0.7):
         super().__init__()
 
         self.minbatch_std = Minibatch_std()
@@ -215,7 +215,7 @@ class Discriminator(nn.Module):
         blocks, fromRGBs = [], []
         for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
             fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))
-            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress))
+            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress, reduce_ratio=reduce_ratio))
 
         self.fromRGBs = nn.ModuleList(fromRGBs)
         self.blocks = nn.ModuleList(blocks)

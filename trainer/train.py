@@ -1,10 +1,11 @@
 import gc
-from utils.metrics import mean_average_precision
+from utils.metrics import mean_average_precision_impression
 from utils.mylib import *
 from utils.loss import *
 from utils.visualize import *
 from dataset import *
 import pandas as pd
+import os
 def gradient_penalty(netD, real, fake, cond, res, batch_size, gamma=1):
     device = real.device
     alpha = torch.rand(batch_size, 1, 1, 1, requires_grad=True).to(device)
@@ -71,8 +72,7 @@ def pggan_train(param):
     prediction_imp = []
     target_imp = []
     for batch_idx, samples in enumerate(databar):
-        real_img, char_class, labels, style_img, diff_img \
-            = samples['img'], samples['charclass'], samples['embed_label'], samples['style_img'], samples['diff_img']
+        real_img, char_class, labels, style_img = samples['img'], samples['charclass'], samples['embed_label'], samples['style_img']
         #ステップの定義
         res = iter / opts.res_step
         # get integer by floor
@@ -92,9 +92,10 @@ def pggan_train(param):
         # 印象語のベクトル
         labels_oh = Multilabel_OneHot(labels, len(ID), normalize=False)
         if opts.label_transform:
+            co_matrix = co_matrix
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
         else:
-            labels_oh_ = labels_oh.to(opts.device)
+            labels_oh_ = labels_oh
         # training Generator
         #画像の生成に必要なノイズ作成
         z_img = torch.randn(batch_len, opts.latent_size * 16)
@@ -162,12 +163,10 @@ def pggan_train(param):
             D_loss.backward(retain_graph=True)
             D_optimizer.step()
             if opts.style_discriminator:
-                diff_img = F.adaptive_avg_pool2d(diff_img, (img_size, img_size))
-                diff_img = diff_img.to(opts.device)
                 D_style_real = style_D_model(real_img, style_img, res)
                 D_style_fake = style_D_model(fake_img, style_img, res)
-                D_style_wrong = style_D_model(diff_img, style_img, res)
-                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros))/2
+                D_style_wrong = style_D_model(real_img[1:], style_img[:-1], res)
+                D_style_loss = style_loss(D_style_real, ones) + (style_loss(D_style_fake, zeros) + style_loss(D_style_wrong, zeros[1:]))/2
                 style_D_optimizer.zero_grad()
                 D_style_loss.backward()
                 style_D_optimizer.step()
@@ -195,8 +194,8 @@ def pggan_train(param):
             writer.add_scalars("style_loss", {'D_style_loss': D_style_loss, 'G_style_loss': G_style_loss}, iter)
         iter += 1
 
-        if iter % 100 == 0:
-            test_label = ['decorative', 'big', 'shade', 'manuscript', 'ghost']
+        if iter % 1000 == 0:
+            test_label = opts.label_list
             test_emb_label = [[ID[key]] for key in test_label]
             label = Multilabel_OneHot(test_emb_label, len(ID), normalize=False)
             save_path = os.path.join(opts.logs_GAN, 'img_iter_%05d_%02d✕%02d.png' % (iter, real_img.size(2), real_img.size(3)))
@@ -208,25 +207,12 @@ def pggan_train(param):
                    'D_net': D_model.state_dict(),
                    'D_optimizer': D_optimizer.state_dict()}
             torch.save(weight, os.path.join(opts.weight_dir, 'weight_iter_%d.pth' % (iter)))
-            if opts.visualize_sc:
-                with torch.no_grad():
-                    test_A = F.adaptive_avg_pool2d(opts.test_A, (img_size, img_size))
-                    _, _, test_imp = D_model(test_A.detach(), res)
-                    gen_label_ = last_activation(test_imp.detach())
-                    gen_label = caliculate_tf_idf(gen_label_)
-                    gen_label = (gen_label - gen_label.mean(0)) / (gen_label.std(0) + 1e-7)
-                    sc_teacher = G_model.module.impression_embedding(labels_oh_)
-                    sc = G_model.module.impression_embedding(gen_label)
-                    fig_vsc = opts.vsc.visualize_sc(sc_teacher, sc)
-                    fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_iter_{iter}.png"))
-                    fig_vsc = opts.vsc.visualize_sc_w2v(opts.test_A, sc)
-                    fig_vsc.savefig(os.path.join(opts.learning_log_dir, f"sc_w2v_iter_{iter}.png"))
 
         if iter == opts.res_step * 6:
             break
     prediction_imp = torch.cat(prediction_imp, axis=0)
     target_imp = torch.cat(target_imp, axis=0)
-    _, score = mean_average_precision(prediction_imp, target_imp)
+    _, score = mean_average_precision_impression(prediction_imp, target_imp)
     mAP_score.loc[f"epoch_{epoch}"] = score
     fid_disttance = fid.calculate_fretchet(real_img.data.cpu().repeat(1, 3, 1, 1),
                                            fake_img.data.cpu().repeat(1, 3, 1, 1),  cuda=opts.device, batch_size=opts.batch_size//4)

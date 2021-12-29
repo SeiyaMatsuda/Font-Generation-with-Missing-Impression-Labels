@@ -7,6 +7,10 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.metrics import FID
 from  utils.visualize import visualize_semantic_condition
 import pandas as pd
+import os
+import collections
+import torch.nn as nn
+import time
 
 def make_logdir(path):
     log_dir = path
@@ -30,16 +34,25 @@ def pgmodel_run(opts):
     z_img = torch.randn(4, opts.latent_size * 4 * 4)
     z_cond = torch.randn(4, opts.num_dimension)
     z = (z_img, z_cond)
+
+    count_label = dict(collections.Counter(sum(label, [])))
+    count_label_df = pd.DataFrame.from_dict(count_label, orient="index", columns=['imp_num'])
+    count_label_df = count_label_df[count_label_df.imp_num > opts.min_impression_num]
+    count_label_df.to_csv(os.path.join(opts.log_dir, "used_label.csv"))
+    label = list(map(lambda x: [xx for xx in x if xx in list(count_label_df.index)], label))
+
+    opts.w2v_vocab = {key: value for key, value in opts.w2v_vocab.items() if key in count_label_df.index}
     #単語IDの変換
     ID = {key:idx+1 for idx, key in enumerate(opts.w2v_vocab)}
     weights = np.array(list(opts.w2v_vocab.values()))
     imp_num = weights.shape[0]
     w2v_dimension = weights.shape[1]
     co_matrix = create_co_matrix(label, ID)
+
     #モデルを定義
-    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress).to(opts.device)
-    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, attention=opts.attention, normalize=opts.sc_normalize).to(opts.device)
-    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, attention=opts.attention, normalize=opts.sc_normalize).to(opts.device)
+    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress, reduce_ratio=opts.reduce_ratio).to(opts.device)
+    G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, normalize=opts.sc_normalize).to(opts.device)
+    G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num,  normalize=opts.sc_normalize).to(opts.device)
     if opts.style_discriminator:
         style_D_model = StyleDiscriminator(style_num=4).to(opts.device)
     else:
@@ -80,27 +93,26 @@ def pgmodel_run(opts):
     transform = Transform()
     #training param
     iter_start = opts.start_iterations
+    bs = opts.batch_size
     writer = SummaryWriter(log_dir=opts.learning_log_dir)
-    # visualize semantic_condition
-    if opts.visualize_sc:
-        opts.vsc = visualize_semantic_condition(weights)
-        idx = random.sample(list(range(len(data))), 512)
-        A = data[idx][:, 0, :, :]
-        opts.test_char = torch.eye(opts.char_num)[0].unsqueeze(0).repeat(512, 1)
-        opts.test_A = transform(torch.from_numpy(A.astype(np.float32)).clone().unsqueeze(1))
     if opts.multi_learning:
         dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
                               transform=transform)
         pos_weight = dataset.pos_weight
+        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+                                                 collate_fn=collate_fn, drop_last=True, pin_memory=True, num_workers=4)
     else:
         dataset = Myfont_dataset3(data, label, ID, char_num=opts.char_num,
                                   transform=transform)
 
     bs = opts.batch_size
+    LOGGER.info(f"used_font_num:{len(dataset)}")
+    LOGGER.info(f"used_impression_num:{len(count_label_df.index)}")
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
-        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+        if not opts.multi_learning:
+            DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True, pin_memory=True, num_workers=4)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'style_D_model':style_D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score": mAP_score,
@@ -165,14 +177,15 @@ if __name__=="__main__":
                 f"d_lr:{opts.d_lr}\n"
                 f"start_iteration:{opts.start_iterations}\n"
                 f"res_step:{opts.res_step}\n"
-                f"attention:{opts.attention}\n"
                 f"multi_learning:{opts.multi_learning}\n"
                 f"label_transform:{opts.label_transform}\n"
                 f"label_compress:{opts.label_compress}\n"
+                f"reduce_ratio:{opts.reduce_ratio}\n"
                 f"style_discriminator:{opts.style_discriminator}\n"
                 f"img_size:{opts.img_size}\n"
                 f"w2v_dimension:{opts.w2v_dimension}\n"
                 f"num_dimension:{opts.num_dimension}\n"
+                f"min_impression_num:{opts.min_impression_num}\n"
                 f"latent_size:{opts.latent_size}\n"
                 f"num_epochs:{opts.num_epochs}\n"
                 f"char_num:{opts.char_num}\n"

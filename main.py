@@ -173,7 +173,7 @@ if __name__=="__main__":
     LOGGER = init_logger(opts.log_dir)
     LOGGER.info(f"================hyper parameter================ \n"
                 f"device::{opts.device}\n"
-                f"gpu_id::{opts.gpu_id}\n"
+                f"gpu_num::{opts.gpu_num}\n"
                 f"batch_size:{opts.batch_size}\n"
                 f"g_lr:{opts.g_lr}\n"
                 f"d_lr:{opts.d_lr}\n"

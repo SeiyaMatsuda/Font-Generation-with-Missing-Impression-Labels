@@ -67,11 +67,12 @@ def pgmodel_run(opts):
     #学習済みモデルのパラメータを使用
     # GPUの分散
     if opts.device_count > 1:
-        D_model = nn.DataParallel(D_model, opts.gpu_id)
-        G_model = nn.DataParallel(G_model, opts.gpu_id)
-        G_model_mavg = nn.DataParallel(G_model_mavg, opts.gpu_id)
+        gpu_id = list(range(opts.gpu_num))
+        D_model = nn.DataParallel(D_model, gpu_id)
+        G_model = nn.DataParallel(G_model, gpu_id)
+        G_model_mavg = nn.DataParallel(G_model_mavg, gpu_id)
         if opts.style_discriminator:
-            style_D_model = nn.DataParallel(style_D_model, opts.gpu_id)
+            style_D_model = nn.DataParallel(style_D_model, gpu_id)
     # optimizerの定義
     if opts.style_discriminator:
         style_D_optimizer = torch.optim.Adam(style_D_model.parameters(), lr=opts.d_lr, betas=(0, 0.99))

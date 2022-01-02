@@ -12,19 +12,18 @@ torch.cuda.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 device ='cuda'
 class Font_Generator:
-    def __init__(self, G_model, ID, device, data_pararell=True, imp2font = False):
+    def __init__(self, G_model, ID, device, data_pararell=True, imp2font=False):
         super().__init__()
         self.ID = ID
         self.G_model = G_model.to(device)
         if data_pararell:
             self.G_model = nn.DataParallel(self.G_model)
-        # self.weight = torch.load(path)["G_net"]
-        # self.G_model.load_state_dict(torch.load(path)["G_net"], strict=False)
         self.device = device
         self.alpha2num = lambda c: ord(c) -ord('A')
-        self.z_img = torch.randn(1000, 256 * 4 * 4)
         if imp2font:
-            self.z_img = torch.randn(1000, 300)
+            self.z_img = torch.normal(mean=0.5, std=0.2, size=(1000, 300))
+        else:
+            self.z_img = torch.randn(1000, 256 * 4 * 4)
         self.z_cond = torch.randn(1000, 100)
         self.imp2font = imp2font
     def generate_from_impression(self, generate_num, impression_word, alphabet="ABCHERONS"):
@@ -77,7 +76,7 @@ class Font_Generator:
             samples = samples.reshape(-1, char_num, samples.size(2), samples.size(3))
         return samples
 
-    def interpolation_impression(self, word1, word2, c=5, alphabet="ABCHERONS"):
+    def interpolation_impression(self, word1, word2, c=6, alphabet="ABCHERONS"):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))
         char_num = len(alpha_num)
@@ -126,24 +125,27 @@ class Font_Generator:
             samples = samples.reshape(-1, char_num, samples.size(2), samples.size(3))
         return samples
 
-    def generate_from_impression(self, label, co_matrix, c=100, alphabet="A", ratio=[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]):
+    def generate_from_changed_ratio(self, label, co_matrix, c=100, alphabet="A", ratio=[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))
         char_num = len(alpha_num)
         char_class = torch.eye(26)[torch.tensor(alpha_num)].repeat(c, 1)
-        z_img = self.z_img[:c]
-        z_cond = self.z_cond[:c]
-        z_img = tile(z_img, 0, char_num)
-        z_cond = tile(z_cond, 0, char_num)
         char_class = char_class.to(self.device)
-        z_img = z_img.to(self.device)
-        z_cond = z_cond.to(self.device)
-        noise = (z_img, z_cond)
+        if self.imp2font:
+            noise = self.z_img[:c]
+            noise = tile(noise, 0, char_num).to(self.device)
+        else:
+            z_img = self.z_img[:c]
+            z_cond = self.z_cond[:c]
+            z_img = tile(z_img, 0, char_num).to(self.device)
+            z_cond = tile(z_cond, 0, char_num).to(self.device)
+            noise = (z_img, z_cond)
         embed_label = torch.tensor([self.ID[token] for token in label])-1
-        select_imp_idx = torch.randperm(len(embed_label))[:1]
-        co_occurence_score = co_matrix[select_imp_idx, embed_label]
+        imp_num = co_matrix[embed_label, embed_label]
+        max_idx = np.argsort(-imp_num)[0]
+        co_occurence_score = co_matrix[embed_label[max_idx], embed_label]
         idx = np.argsort(co_occurence_score)
-        idx = np.append(idx[-1], idx[:-1])
+        # idx = np.append(idx[-1], idx[:-1])
         samples_img = []
         samples_label = []
         for r in ratio:

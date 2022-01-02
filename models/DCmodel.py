@@ -1,5 +1,5 @@
 from .common import *
-
+from .Imp2Font import Imp2font_ImpEmbedding
 
 class ACGenerator(nn.Module):
     def __init__(self,  weights, z_dim = 300, num_dimension = 300, imp_num = 1574 , char_num = 26, mode = 'CP', emb = 'w2v'):
@@ -15,7 +15,7 @@ class ACGenerator(nn.Module):
             sum_weight = False
             deepsets = False
         if emb == 'w2v':
-            self.w2v_layer = ImpEmbedding(weights, sum_weight=sum_weight, deepsets=deepsets)
+            self.w2v_layer = Imp2font_ImpEmbedding(weights, sum_weight=sum_weight, deepsets=deepsets)
         elif emb == 'one-hot':
             num_dimension = imp_num
         self.num_dimension = num_dimension

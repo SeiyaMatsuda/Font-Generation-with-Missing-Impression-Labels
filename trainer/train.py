@@ -105,7 +105,7 @@ def pggan_train(param):
         gen_label_ = last_activation(D_real_class).detach()
         gen_label = caliculate_tf_idf(gen_label_)
         gen_label = ((gen_label - gen_label.mean(0))/(gen_label.std(0) + 1e-7))
-        gen_label[gen_label>0] = (gen_label[gen_label<0] **2)
+        gen_label[gen_label>0] = (gen_label[gen_label>0] **2)
         gen_label[gen_label<0] = -(gen_label[gen_label<0] **2)
         # ２つのノイズの結合
         fake_img, mu, logvar = G_model(z, char_class_oh, gen_label, res)

@@ -94,7 +94,7 @@ def pggan_train(param):
         if opts.label_transform:
             labels_oh_ = missing2prob(labels_oh, co_matrix).to(opts.device)
         else:
-            labels_oh_ = labels_oh
+            labels_oh_ = labels_oh.to(opts.device)
         # training Generator
         #画像の生成に必要なノイズ作成
         z_img = torch.randn(batch_len, opts.latent_size * 16)

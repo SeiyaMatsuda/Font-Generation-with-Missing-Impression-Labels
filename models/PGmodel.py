@@ -75,9 +75,9 @@ class ConvModuleD(nn.Module):
             if compress:
                 layer_imp = [
                     nn.Flatten(),
-                    nn.Linear(outch * 4 * 4, int(imp_num * reduce_ratio)),
+                    nn.Linear(outch * 4 * 4, 300),
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(int(imp_num * reduce_ratio), imp_num)]
+                    nn.Linear(300, imp_num)]
             else:
                 layer_imp = [
                 nn.Flatten(),

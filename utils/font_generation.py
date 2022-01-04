@@ -33,7 +33,7 @@ class Font_Generator:
         char_class = torch.eye(26)[torch.tensor(alpha_num)].repeat(generate_num, 1)
         idx = torch.randperm(len(self.z_img))[:generate_num]
         label = [[self.ID[token] for token in impression_word]]
-        label = Multilabel_OneHot(label, len(self.ID), normalize=False)
+        label = Multilabel_OneHot(label, len(self.ID), normalize=True)
         label = torch.tensor(label).repeat(char_num * generate_num, 1).to(self.device)
         if self.imp2font:
             noise = self.z_img[idx]
@@ -125,18 +125,22 @@ class Font_Generator:
             samples = samples.reshape(-1, char_num, samples.size(2), samples.size(3))
         return samples
 
-    def generate_from_changed_ratio(self, label, co_matrix, c=100, alphabet="A", ratio=[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1]):
+    def generate_from_changed_ratio(self, label, co_matrix, c=100, alphabet="A", ratio=[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1], shuffle=True):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))
         char_num = len(alpha_num)
         char_class = torch.eye(26)[torch.tensor(alpha_num)].repeat(c, 1)
         char_class = char_class.to(self.device)
+        if shuffle:
+            idx = torch.randperm(len(self.z_img))[:c]
+        else:
+            idx = torch.tensor(range(len(self.z_img)))[:c]
         if self.imp2font:
-            noise = self.z_img[:c]
+            noise = self.z_img[idx]
             noise = tile(noise, 0, char_num).to(self.device)
         else:
-            z_img = self.z_img[:c]
-            z_cond = self.z_cond[:c]
+            z_img = self.z_img[idx]
+            z_cond = self.z_cond[idx]
             z_img = tile(z_img, 0, char_num).to(self.device)
             z_cond = tile(z_cond, 0, char_num).to(self.device)
             noise = (z_img, z_cond)
@@ -153,7 +157,7 @@ class Font_Generator:
             label_ = [label[i] for i in idx[:length]]
             samples_label.append(label_)
             label_ = [[self.ID[token] for token in label_]]
-            label_ = Multilabel_OneHot(label_, len(self.ID), normalize=False)
+            label_ = Multilabel_OneHot(label_, len(self.ID), normalize=True)
             label_ = torch.tensor(label_).repeat(char_num * c, 1).to(self.device)
             label_ = label_.to(self.device)
             with torch.no_grad():

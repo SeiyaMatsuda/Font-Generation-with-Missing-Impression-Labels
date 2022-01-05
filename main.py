@@ -1,3 +1,5 @@
+import torch
+
 from trainer.train import pggan_train
 from utils.mylib import *
 from utils.logger import init_logger
@@ -165,7 +167,9 @@ if __name__=="__main__":
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
     if opts.device=="cuda":
-        opts.device= f"cuda:{opts.gpu_id[0]}"
+        opts.device= torch.device(f"cuda:{opts.gpu_id[0]}")
+    elif opts.device=="cpu":
+        opts.device = torch.device("cpu")
     # make dirs
     opts.log_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))

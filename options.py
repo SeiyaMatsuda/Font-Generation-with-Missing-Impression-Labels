@@ -30,7 +30,7 @@ def get_parser():
     parser.set_defaults(label_compress=True)
     parser.add_argument('--style_discriminator', dest='style_discriminator', action='store_true')
     parser.add_argument('--no_style_discriminator', dest='style_discriminator', action='store_false')
-    parser.add_argument('--reduce_ratio', type=float, default=0.7)
+    parser.add_argument('--reduce_ratio', type=float, default=0.3)
     parser.set_defaults(style_discriminator=True)
     parser.add_argument('--sc_normalize', dest='sc_normalize', action='store_true')
     parser.add_argument('--no_sc_normalize', dest='sc_normalize', action='store_false')
@@ -49,7 +49,7 @@ def get_parser():
     parser.add_argument('--label_list', type=list, default=["decorative", "big", "shade", "manuscript", "ghost"])
     cuda = True if torch.cuda.is_available() else False
     parser.add_argument('--gpu_id', nargs='+', type=int, default=[0, 1, 2, 3])
-    parser.add_argument('--device', type=str, default=torch.device(f"cuda:{parser.parse_args().gpu_id[0]}" if cuda else "cpu"))
+    parser.add_argument('--device', type=str, default=torch.device(f"cuda:{parser.parse_args([]).gpu_id[0]}" if cuda else "cpu"))
     parser.add_argument('--Tensor', default=torch.cuda.FloatTensor if cuda else torch.FloatTensor)
     parser.add_argument('--LongTensor', default=torch.cuda.LongTensor if cuda else torch.LongTensor)
     parser.add_argument('--root', type=str, default='./result', help='directory contrains the data and outputs')

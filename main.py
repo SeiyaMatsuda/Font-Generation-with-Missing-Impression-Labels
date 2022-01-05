@@ -164,7 +164,8 @@ if __name__=="__main__":
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-
+    if opts.device=="cuda":
+        opts.device= f"cuda:{opts.gpu_id[0]}"
     # make dirs
     opts.log_dir, opts.weight_dir, opts.logs_GAN, opts.learning_log_dir = \
         make_logdir(os.path.join(opts.root, opts.dt_now))

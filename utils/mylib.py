@@ -120,7 +120,7 @@ def missing2prob(input, co_matrix):
 def missing2prob(input, co_matrix):
     co_matrix_n = co_matrix/(np.diag(co_matrix))
     output = torch.mm(input, co_matrix_n.T)/input.sum(1).unsqueeze(1)
-    # output[input==1]=1
+    output[input==1] = 1
     return output
 def fix_model_state_dict(state_dict):
     new_state_dict = OrderedDict()

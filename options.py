@@ -48,7 +48,7 @@ def get_parser():
     parser.add_argument('--nibuchan', type=str, default=False)
     parser.add_argument('--label_list', type=list, default=["decorative", "big", "shade", "manuscript", "ghost"])
     cuda = True if torch.cuda.is_available() else False
-    parser.add_argument('--gpu_id', nargs='+', type=int, default=[0, 1, 2, 3])
+    parser.add_argument('--gpu_id', nargs='+', type=int, default=[0, 1,])
     parser.add_argument('--device', type=str, default="cuda" if cuda else "cpu")
     parser.add_argument('--Tensor', default=torch.cuda.FloatTensor if cuda else torch.FloatTensor)
     parser.add_argument('--LongTensor', default=torch.cuda.LongTensor if cuda else torch.LongTensor)

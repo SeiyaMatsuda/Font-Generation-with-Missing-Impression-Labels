@@ -129,7 +129,7 @@ class Font_Generator:
             samples = samples.reshape(-1, char_num, samples.size(2), samples.size(3))
         return samples
 
-    def generate_from_changed_ratio(self, label, co_matrix, c=100, alphabet="A", ratio=[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1], shuffle=False):
+    def generate_from_changed_ratio(self, label, c=100, alphabet="A", ratio=[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1], shuffle=False, co_matrix=None):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))
         char_num = len(alpha_num)
@@ -149,11 +149,13 @@ class Font_Generator:
             z_cond = tile(z_cond, 0, char_num).to(self.device)
             noise = (z_img, z_cond)
         embed_label = torch.tensor([self.ID[token] for token in label])-1
-        imp_num = co_matrix[embed_label, embed_label]
-        max_idx = np.argsort(-imp_num)[0]
-        co_occurence_score = co_matrix[embed_label[max_idx], embed_label]
-        idx = np.argsort(co_occurence_score)
-        # idx = np.append(idx[-1], idx[:-1])
+        if co_matrix!=None:
+            imp_num = co_matrix[embed_label, embed_label]
+            max_idx = np.argsort(-imp_num)[0]
+            co_occurence_score = co_matrix[embed_label[max_idx], embed_label]
+            idx = np.argsort(co_occurence_score)
+        else:
+            idx = torch.randperm(len(embed_label))
         samples_img = []
         samples_label = []
         for r in ratio:

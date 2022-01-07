@@ -35,6 +35,7 @@ class Imp2font_ImpEmbedding(nn.Module):
             attr = self.sets_layer(attr)
         else:
             attr = attr.sum(1)
+        # attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1) + 1e-7)
         attr = self.res_block(attr)
         return attr
 

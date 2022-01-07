@@ -20,12 +20,12 @@ class Font_Generator:
             self.G_model = nn.DataParallel(self.G_model)
         self.device = device
         self.alpha2num = lambda c: ord(c) -ord('A')
-        if imp2font:
+        self.imp2font = imp2font
+        if self.imp2font:
             self.z_img = torch.normal(mean=0.5, std=0.2, size=(1000, 300))
         else:
             self.z_img = torch.randn(1000, 256 * 4 * 4)
         self.z_cond = torch.randn(1000, 100)
-        self.imp2font = imp2font
     def generate_from_impression(self, generate_num, impression_word, alphabet="ABCHERONS", shuffle=False):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))

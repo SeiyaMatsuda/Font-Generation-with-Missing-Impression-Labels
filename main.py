@@ -101,8 +101,6 @@ def pgmodel_run(opts):
         dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
                               transform=transform)
         pos_weight = dataset.pos_weight
-        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
-                                                 collate_fn=collate_fn, drop_last=True, pin_memory=True, num_workers=4)
     else:
         dataset = Myfont_dataset3(data, label, ID, char_num=opts.char_num,
                                   transform=transform)
@@ -113,8 +111,7 @@ def pgmodel_run(opts):
     for epoch in range(opts.num_epochs):
         start_time = time.time()
         LOGGER.info(f"================epoch_{epoch}================")
-        if not opts.multi_learning:
-            DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
+        DataLoader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=True,
                                                  collate_fn=collate_fn, drop_last=True, pin_memory=True, num_workers=4)
         param = {"opts": opts,  'epoch': epoch, 'G_model': G_model, 'D_model': D_model, 'style_D_model':style_D_model,
                  'G_model_mavg': G_model_mavg, "dataset": dataset, "z": z, "fid": fid, "mAP_score": mAP_score,

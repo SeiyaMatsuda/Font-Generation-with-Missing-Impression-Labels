@@ -41,7 +41,6 @@ class Font_Generator:
         if self.imp2font:
             noise = self.z_img[idx]
             noise = tile(noise, 0, char_num).to(self.device)
-            noise = tile(noise, 0, char_num).to(self.device)
         else:
             z_img = self.z_img[idx]
             z_cond = self.z_cond[idx]

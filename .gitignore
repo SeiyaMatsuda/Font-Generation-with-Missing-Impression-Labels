@@ -1,3 +1,5 @@
+.*
+!.gitignore
 /Myfont/
 /__pycache__/
 /program/

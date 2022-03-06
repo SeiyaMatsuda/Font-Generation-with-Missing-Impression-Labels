@@ -1,9 +1,9 @@
 import torch
-
 from .mylib import *
 from dataset import *
 import numpy as np
 import torch.nn as nn
+import word2vec
 SEED = 1111
 random.seed(SEED)
 np.random.seed(SEED)
@@ -19,6 +19,7 @@ class Font_Generator:
         if data_pararell:
             self.G_model = nn.DataParallel(self.G_model)
         self.device = device
+        self.word2vec = word2vec.word2vec()
         self.alpha2num = lambda c: ord(c) -ord('A')
         self.imp2font = imp2font
         if self.imp2font:
@@ -35,9 +36,19 @@ class Font_Generator:
             idx = torch.randperm(len(self.z_img))[:generate_num]
         else:
             idx = torch.tensor(list(range(len(self.z_img))))[:generate_num]
-        label = [[self.ID[token] for token in impression_word]]
-        label = Multilabel_OneHot(label, len(self.ID), normalize=True)
+        try:
+            label = [[self.ID[token] for token in impression_word]]
+            label = Multilabel_OneHot(label, len(self.ID), normalize=True)
+            emb=True
+        except:
+            label = [torch.tensor(self.word2vec[ii]) for ii in impression_word]
+            label = torch.stack(label)
+            label = label.sum(0)
+            label = label/(torch.sqrt((label ** 2).sum(0))+ 1e-7)
+            label = label.unsqueeze(0)
+            emb = False
         label = torch.tensor(label).repeat(char_num * generate_num, 1).to(self.device)
+        print(label.shape)
         if self.imp2font:
             noise = self.z_img[idx]
             noise = tile(noise, 0, char_num).to(self.device)
@@ -48,11 +59,10 @@ class Font_Generator:
             z_cond = tile(z_cond, 0, char_num).to(self.device)
             noise = (z_img, z_cond)
         with torch.no_grad():
-            samples = self.G_model(noise, char_class, label, 5)[0]
+            samples = self.G_model(noise, char_class, label, 5, emb=emb)[0]
             samples = samples.data.cpu()
             samples = samples.reshape(-1, char_num, samples.size(2), samples.size(3))
         return samples
-
     def interpolation_noise(self, word, c=5, alphabet="ABCHERONS"):
         alphabet = list(alphabet)
         alpha_num = list(map(self.alpha2num, alphabet))

@@ -1,5 +1,4 @@
 import torch
-
 from trainer.train import pggan_train
 from utils.mylib import *
 from utils.logger import init_logger
@@ -7,6 +6,7 @@ from dataset import *
 from models.PGmodel import Generator, Discriminator, StyleDiscriminator
 from torch.utils.tensorboard import SummaryWriter
 from utils.metrics import FID
+import glob
 from  utils.visualize import visualize_semantic_condition
 import pandas as pd
 import os
@@ -52,7 +52,7 @@ def pgmodel_run(opts):
     co_matrix = create_co_matrix(label, ID)
 
     #モデルを定義
-    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress, reduce_ratio=opts.reduce_ratio).to(opts.device)
+    D_model = Discriminator(num_dimension=opts.num_dimension, imp_num=imp_num, char_num=opts.char_num, compress=opts.label_compress, d_dimension=opts.d_dimension).to(opts.device)
     G_model = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num, normalize=opts.sc_normalize).to(opts.device)
     G_model_mavg = Generator(weights, latent_size=opts.latent_size, w2v_dimension=w2v_dimension, num_dimension=opts.num_dimension, char_num=opts.char_num,  normalize=opts.sc_normalize).to(opts.device)
     if opts.style_discriminator:
@@ -95,7 +95,6 @@ def pgmodel_run(opts):
     transform = Transform()
     #training param
     iter_start = opts.start_iterations
-    bs = opts.batch_size
     writer = SummaryWriter(log_dir=opts.learning_log_dir)
     if opts.multi_learning:
         dataset = Myfont_dataset2(data, label, ID, char_num=opts.char_num,
@@ -155,6 +154,11 @@ def pgmodel_run(opts):
 if __name__=="__main__":
     parser = get_parser()
     opts = parser.parse_args()
+    sortsecond = lambda a: os.path.splitext(os.path.basename(a))[0]
+    opts.data = sorted(glob.glob(os.path.join(opts.data_path, 'images', '*.npy')), key=sortsecond)
+    opts.impression_word_list=pickle_load(os.path.join(opts.data_path, 'impression_word_list.pickle'))
+    opts.w2v_vocab = pickle_load(os.path.join(opts.data_path, 'w2v_vocab.pickle'))
+    opts.imp_num = len(opts.w2v_vocab)
     # 再現性確保のためseed値固定
     SEED = 42
     random.seed(SEED)
@@ -183,7 +187,7 @@ if __name__=="__main__":
                 f"multi_learning:{opts.multi_learning}\n"
                 f"label_transform:{opts.label_transform}\n"
                 f"label_compress:{opts.label_compress}\n"
-                f"reduce_ratio:{opts.reduce_ratio}\n"
+                f"d_dimension:{opts.d_dimension}\n"
                 f"style_discriminator:{opts.style_discriminator}\n"
                 f"img_size:{opts.img_size}\n"
                 f"w2v_dimension:{opts.w2v_dimension}\n"

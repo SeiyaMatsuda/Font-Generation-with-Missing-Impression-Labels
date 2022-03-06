@@ -40,17 +40,21 @@ class Imp2font_ImpEmbedding(nn.Module):
         return attr
 
 class Imp2Font(nn.Module):
-    def __init__(self,  weights, latent_size=300, w2v_dimension=300, imp_num=1574, char_num=26, sum_weight=True, deepsets=True):
+    def __init__(self,  weights, latent_size=300, w2v_dimension=300, imp_num=1574, char_num=26, sum_weight=False, deepsets=False, w2v=True):
         super(Imp2Font, self).__init__()
         self.z_dim = latent_size
         self.char_num = char_num
         self.imp_num = imp_num
-        self.w2v_layer = Imp2font_ImpEmbedding(weights, sum_weight=sum_weight, deepsets=deepsets)
-        self.num_dimension = w2v_dimension
+        self.w2v = w2v
+        if self.w2v:
+            self.w2v_layer = Imp2font_ImpEmbedding(weights, sum_weight=sum_weight, deepsets=deepsets)
+            self.num_dimension = w2v_dimension
+        else:
+            self.num_dimension = imp_num
         self.layer1 = nn.Sequential(
-            nn.Linear(self.z_dim + char_num , 1500),
+            nn.Linear(self.z_dim + char_num, 1500),
             nn.BatchNorm1d(1500),
-            nn.LeakyReLU(0.2,inplace=True))
+            nn.LeakyReLU(0.2, inplace=True))
 
         self.layer2 = nn.Sequential(
             nn.Linear(self.num_dimension, 1500),
@@ -105,7 +109,9 @@ class Imp2Font(nn.Module):
     def forward(self, noise, y_char, y_imp, res):
         y_1 = self.layer1(torch.cat([noise, y_char], dim=1))  # (100,1,1)⇒(300,1,1)
         # 印象情報のw2v
-        attr = self.w2v_layer(y_imp)
+        attr = y_imp
+        if self.w2v:
+            attr = self.w2v_layer(attr)
         #印象情報のEmbedding
         y_2 = self.layer2(attr)  # (300,1,1)⇒(1500,1,1)
         x = torch.cat([y_1, y_2], dim = 1)  # y_1 + y_2=(1800,1,1)

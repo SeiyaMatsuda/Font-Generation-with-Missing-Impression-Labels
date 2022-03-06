@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/LIFont.iml" filepath="$PROJECT_DIR$/.idea/LIFont.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/PGGAN.iml" filepath="$PROJECT_DIR$/.idea/PGGAN.iml" />
     </modules>
   </component>
 </project>

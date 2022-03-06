@@ -30,7 +30,7 @@ def get_parser():
     parser.set_defaults(label_compress=True)
     parser.add_argument('--style_discriminator', dest='style_discriminator', action='store_true')
     parser.add_argument('--no_style_discriminator', dest='style_discriminator', action='store_false')
-    parser.add_argument('--reduce_ratio', type=float, default=0.3)
+    parser.add_argument('--d_dimension', type=float, default=100)
     parser.set_defaults(style_discriminator=True)
     parser.add_argument('--sc_normalize', dest='sc_normalize', action='store_true')
     parser.add_argument('--no_sc_normalize', dest='sc_normalize', action='store_false')
@@ -48,22 +48,13 @@ def get_parser():
     parser.add_argument('--nibuchan', type=str, default=False)
     parser.add_argument('--label_list', type=list, default=["decorative", "big", "shade", "manuscript", "ghost"])
     cuda = True if torch.cuda.is_available() else False
-    parser.add_argument('--gpu_id', nargs='+', type=int, default=[0, 1,])
+    parser.add_argument('--gpu_id', nargs='+', type=int, default=[0, 1])
     parser.add_argument('--device', type=str, default="cuda" if cuda else "cpu")
     parser.add_argument('--Tensor', default=torch.cuda.FloatTensor if cuda else torch.FloatTensor)
     parser.add_argument('--LongTensor', default=torch.cuda.LongTensor if cuda else torch.LongTensor)
     parser.add_argument('--root', type=str, default='./result', help='directory contrains the data and outputs')
     parser.add_argument('--out_res', type=int, default=64, help='The resolution of final output image')
     parser.add_argument('--resume', type=int, default=0, help='continues from epoch number')
-    parser.add_argument('--data_path', type=str, default='../Myfont/dataset', help='Path of the directory where the original data is stored')
-    path = os.path.join(os.path.dirname(__file__), 'dataset')
-    if os.path.isdir(path):
-        sortsecond = lambda a: os.path.splitext(os.path.basename(a))[0]
-        data = sorted(glob.glob(os.path.join(path, 'images', '*.npy')), key=sortsecond)
-        parser.add_argument('--data', default=data)
-        parser.add_argument('--impression_word_list', type=list, default=pickle_load(os.path.join(path, 'impression_word_list.pickle')))
-        w2v_vocab = pickle_load(os.path.join(path, 'w2v_vocab.pickle'))
-        parser.add_argument('--w2v_vocab', type=dict, default=w2v_vocab)
-        parser.add_argument('--num_impression_word', type=int, default=len(w2v_vocab))
+    parser.add_argument('--data_path', type=str, default='./Myfont/preprocessed_dataset', help='Path of the directory where the original data is stored')
     return parser
 

@@ -56,7 +56,7 @@ class ConvModuleD(nn.Module):
         outch: (int), Ex.: 128
     '''
 
-    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, compress=False, dropout=False, reduce_ratio=0.7):
+    def __init__(self, out_size, inch, outch, num_dimension=300, char_num=26, imp_num = 1574, final=False, compress=False, dropout=False, d_dimension=300):
         super().__init__()
         self.final = final
         if final:
@@ -74,9 +74,9 @@ class ConvModuleD(nn.Module):
             if compress:
                 layer_imp = [
                     nn.Flatten(),
-                    nn.Linear(outch * 4 * 4, int(imp_num * reduce_ratio)),
+                    nn.Linear(outch * 4 * 4, d_dimension), #int(imp_num * reduce_ratio)
                     nn.LeakyReLU(0.2, inplace=True),
-                    nn.Linear(int(imp_num * reduce_ratio), imp_num)]
+                    nn.Linear(d_dimension, imp_num)]
             else:
                 layer_imp = [
                 nn.Flatten(),
@@ -140,7 +140,7 @@ class Generator(nn.Module):
             toRGBs.append(nn.Conv2d(outch, 1, 1, padding=0))
             if attention:
                 attn_blocks.append(DCAN(outch, num_dimension, 4 - idx))
-        self.emb_layer = ImpEmbedding(weight, deepsets=False, normalize=normalize)
+        self.emb_layer = ImpEmbedding(weight,  normalize=normalize)
         self.CA_layer = Conditioning_Augumentation(w2v_dimension, num_dimension)
         self.blocks = nn.ModuleList(blocks)
         self.toRGBs = nn.ModuleList(toRGBs)
@@ -199,7 +199,7 @@ class Generator(nn.Module):
         return torch.tanh(x), mu, logvar
 
 class Discriminator(nn.Module):
-    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True, reduce_ratio=0.7):
+    def __init__(self, num_dimension=300, imp_num=1574, char_num=26, compress=True, d_dimension=100):
         super().__init__()
 
         self.minbatch_std = Minibatch_std()
@@ -214,7 +214,7 @@ class Discriminator(nn.Module):
         blocks, fromRGBs = [], []
         for s, inch, outch, final, dropout in zip(sizes, inchs, outchs, finals, dropouts):
             fromRGBs.append(nn.Conv2d(1, inch, 1, padding=0))
-            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress, reduce_ratio=reduce_ratio))
+            blocks.append(ConvModuleD(s, inch, outch, num_dimension=num_dimension, imp_num=imp_num, char_num=char_num, final=final, dropout=dropout, compress=compress, d_dimension=d_dimension))
 
         self.fromRGBs = nn.ModuleList(fromRGBs)
         self.blocks = nn.ModuleList(blocks)

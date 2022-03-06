@@ -1,6 +1,8 @@
 /result/
-/dataset/
-/backup_file/
+/Myfont/
+/__pycache__/
 /program/
+/quantitative_evaluation/
+/output/
+/result/
 /word2vec/
-/pytorch/

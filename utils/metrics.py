@@ -222,7 +222,7 @@ class FID(nn.Module):
             if pred.size(2) != 1 or pred.size(3) != 1:
                 pred = adaptive_avg_pool2d(pred, output_size=(1, 1))
 
-            act = pred.cpu().data.numpy().reshape(pred.size(0), -1)
+            act[start:end] = pred.cpu().data.numpy().reshape(pred.size(0), -1)
 
         if verbose:
             print(' done')

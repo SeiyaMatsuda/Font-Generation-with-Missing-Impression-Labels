@@ -146,32 +146,25 @@ class ResidualBlock(nn.Module):
         return shortcut + output
 
 class ImpEmbedding(nn.Module):
-    def __init__(self, weight,  num_dimension=300, residual_num=0,  deepsets=False, normalize=True, required_grad=False):
+    def __init__(self, weight,  num_dimension=300, residual_num=0, normalize=True, required_grad=False):
         super(ImpEmbedding, self).__init__()
         self.weight = weight
         self.embed = nn.Embedding(self.weight.shape[0], self.weight.shape[1])
         self.embed.weight = nn.Parameter(torch.from_numpy(self.weight))
         self.shape = (self.weight.shape[0], self.weight.shape[1])
-        self.deepsets = deepsets
         self.normalize = normalize
-        print('deepsets:{}'.format(self.deepsets))
-        if deepsets:
-            self.sets_layer = DeepSets(num_dimension, num_dimension)
         if not required_grad:
             self.embed.weight.requires_grad = False
         res_block =[]
         for i in range(residual_num):
             res_block.append(ResidualBlock(num_dimension))
         self.res_block = nn.Sequential(*res_block)
-    def forward(self, labels , w2v=True):
+    def forward(self, labels):
         labels = labels.view(labels.size(0), labels.size(1), 1)
         attr = torch.mul(self.embed.weight.data, labels)
-        if self.deepsets:
-            attr = self.sets_layer(attr)
-        else:
-            attr = attr.sum(1)
-            if self.normalize:
-                attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1) + 1e-7)
+        attr = attr.sum(1)
+        if self.normalize:
+            attr = attr/(torch.sqrt((attr ** 2).sum(1)).unsqueeze(1) + 1e-7)
         return attr
 class Conditioning_Augumentation(nn.Module):
     def __init__(self, input_dim, output_dim):
@@ -369,8 +362,4 @@ class Conv2d(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
-if __name__ == '__main__':
-    Attn = Attention(64, 300, 1).to('cuda')
-    from torchinfo import summary
-    summary(Attn, input_size=[(64, 64, 64, 64), (64, 300, 128)])
 

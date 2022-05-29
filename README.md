@@ -1,6 +1,17 @@
 # Font Generation with Missing Impression Labels(ICPR2022)
 This repository provides PyTorch implementation for [**Font Generation with Missing Impression Labels**](https://arxiv.org/abs/2203.10348). Given an *impression labels*, our proposed model can generate the appropriate style font image. This paper proposes a font generation model that is robust against missing impression labels. 
 
+<img src="figs/proposed_model.png" width=100% alt="The overall structure of the proposed model. The two modules, impression label space compressor (ILSC) and co-occurrence-based missing label
+estimator (CMLE), are highlighted because they are newly introduced for missing labels.">
+
+**Note:**
+In our other studies, we have also proposed font generation model from specific impression. Please check them from the links below.
+- [**Font Generation with Missing Impression Labels**](https://github.com/SeiyaMatsuda/Font-Generation-with-Missing-Impression-Labels) (ICPR 2022): GAN for *impression words*
+## Paper
+**Font Generation with Missing Impression Labels**.<br>
+Seiya Matsuda, Akisato Kimura, and Seichi Uchida<br>
+Accepted ICPR2022
+
 [**[Paper]**](https://arxiv.org/abs/2203.10348)
 
 ## Abstract

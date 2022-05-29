@@ -1,7 +1,7 @@
 # Font Generation with Missing Impression Labels(ICPR2022)
 This repository provides PyTorch implementation for [**Font Generation with Missing Impression Labels**](https://arxiv.org/abs/2203.10348). Given an *impression labels*, our proposed model can generate the appropriate style font image. This paper proposes a font generation model that is robust against missing impression labels. 
 
-<img src="figs/proposed_model.png" width=100% alt="The overall structure of the proposed model. The two modules, impression label space compressor (ILSC) and co-occurrence-based missing label
+<img src="figs/model_architecture-1.png" width=100% alt="The overall structure of the proposed model. The two modules, impression label space compressor (ILSC) and co-occurrence-based missing label
 estimator (CMLE), are highlighted because they are newly introduced for missing labels.">
 
 **Note:**
@@ -74,17 +74,19 @@ python test.py \
 ## MyFonts Dataset
 We use the MyFonts dataset in all our experiments. From the dataset, we removed dingbats (i.e., unreadable illustrations) by manual inspections. We removed impression labels that are not in the vocabularies of word2vec, which was pre-trained by the Google News Dataset. As a result, we use $N=17,202$ fonts (among 18,815) and $K=1,430$ impression labels (among 1,824) in the experiment. The maximum, minimum, and average numbers of impression labels for each font are 184, 1, and 14.39, respectively. 
 
+<img src="figs/myfonts_dataset_example-1.png" width=100% alt="">
+
 ## Examples of generated images
 ### Impression words you can input
 **single impression word.**
 The original **ten** classes (0,...,9; defined in (a)) are divided into **five** classes (*A*,...,*E*) with class overlapping, as shown in (b).
 
-<img src="imgs/single_impression_word.png" width=100% alt="CIFAR-10to5 class-overlapping setting">
+<img src="figs/generated_images_from_single_impression-1.png" width=100% alt="">
 
 **multiple impression word.**
 Each column shows samples associated with the same class-distinct and class-mutual states: *airplane*, *automobile*, *bird*, *cat*, *deer*, *dog*, *frog*, *horse*, *ship*, and *truck*, respectively, from left to right. Each row includes samples generated from a fixed ***z****<sup>g</sup>* and a varied ***y****<sup>g</sup>*. CP-GAN (b) succeeds in selectively generating class-distinct (red font) and class-mutual (blue font) images, whereas AC-GAN (a) fails to do so.
 
-<img src="imgs/multiple_impression_words.png" width=100% alt="CIFAR-10to5 samples">
+<img src="figs/generated_images_from_multiple_impression-1.png" width=100% alt="CIFAR-10to5 samples">
 
 ## Citation
 If you use this code for your research, please cite our paper.
@@ -93,7 +95,7 @@ If you use this code for your research, please cite our paper.
 @inproceedings{matsuda2021fontgeneration,
   title={Font Generation with Missing Impression Labels},
   author={Matsuda, Seiya and Kimura, Akisato and Uchida, Seiichi},
-  booktitle={ICDAR},
+  booktitle={ICPR},
   year={2022}
 }
 

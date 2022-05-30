@@ -29,7 +29,7 @@ First, install Python 3+. Then install [PyTorch](https://pytorch.org/) 1.0 and o
 
 ```bash
 pip install -r requirements.txt
-
+```
 ## Datasets
 Download the dataset from [Google Drive](https://drive.google.com/u/0/open?id=10GRqLu6-1JPXI8rcq23S4-4AhB6On-L6). Place in the following directory. 
 

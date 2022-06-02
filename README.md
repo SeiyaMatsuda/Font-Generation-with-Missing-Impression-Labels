@@ -6,7 +6,7 @@ estimator (CMLE), are highlighted because they are newly introduced for missing 
 
 **Note:**
 In our other studies, we have also proposed font generation model from specific impression. Please check them from the links below.
-- [**Font Generation with Missing Impression Labels**](https://github.com/SeiyaMatsuda/Font-Generation-with-Missing-Impression-Labels) (ICPR 2022): GAN for *impression words*
+- [**Impressions2Font: Generating Fonts by Specifying Impressions**](https://arxiv.org/abs/2103.10036) (ICDAR 2021): GAN for font generation with specific impression.
 ## Paper
 **Font Generation with Missing Impression Labels**.<br>
 Seiya Matsuda, Akisato Kimura, and Seichi Uchida<br>

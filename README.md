@@ -77,14 +77,23 @@ We use the MyFonts dataset in all our experiments. From the dataset, we removed 
 <img src="figs/myfonts_dataset_example-1.png" width=100% alt="">
 
 ## Examples of generated images
+When we generate a font image by a
+(one-hot or multiple-hot) impression vector $y$, the vector $y$ is
+first transformed by CMLE, and the resulting vector is directly
+used as a weight to have the semantic vector $s$.
 ### Impression words you can input
+We used the fixed string **ABCHERONS** to
+observe the generated font images
+. As comparative methods,
+we used two ablation models (**w/o CMLE** and **w/o ILSC**)
+and Imp2Font
+
+
 **single impression word.**
-The original **ten** classes (0,...,9; defined in (a)) are divided into **five** classes (*A*,...,*E*) with class overlapping, as shown in (b).
 
 <img src="figs/generated_images_from_single_impression-1.png" width=100% alt="">
 
 **multiple impression word.**
-Each column shows samples associated with the same class-distinct and class-mutual states: *airplane*, *automobile*, *bird*, *cat*, *deer*, *dog*, *frog*, *horse*, *ship*, and *truck*, respectively, from left to right. Each row includes samples generated from a fixed ***z****<sup>g</sup>* and a varied ***y****<sup>g</sup>*. CP-GAN (b) succeeds in selectively generating class-distinct (red font) and class-mutual (blue font) images, whereas AC-GAN (a) fails to do so.
 
 <img src="figs/generated_images_from_multiple_impression-1.png" width=100% alt="CIFAR-10to5 samples">
 
